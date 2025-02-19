@@ -25,7 +25,7 @@ const productSchema = new mongoose.Schema(
       prices: { type: Number, default: 0 }, 
       discount: { type: Number, default: 0 }, 
       promotionPrice: { type: Number, default: 0 }, 
-      imageUrl: { type: [String], default: [] }, 
+      imageUrls: { type: [String], default: [] }, 
       categoryName: { type: String, default: "" },
       description: {type: String, default: ""},
       reviews: [reviewSchema],
