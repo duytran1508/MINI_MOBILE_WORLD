@@ -52,21 +52,29 @@ const loginUser = (userLogin) => {
   return new Promise(async (resolve, reject) => {
     const { email, password } = userLogin;
     try {
-      const checkUser = await User.findOne({ email });
+      const checkUser = await User.findOne({
+        email: email
+      });
 
       if (!checkUser) {
-        return resolve({
+        resolve({
           status: "ERR",
-          message: "User is not defined",
+          message: "User is not defined"
         });
+        return;
       }
 
-      const isMatch = await bcrypt.compare(password, checkUser.password);
-      if (!isMatch) {
-        return resolve({
+      const comparePassword = await bcrypt.compare(
+        password,
+        checkUser.password
+      );
+
+      if (!comparePassword) {
+        resolve({
           status: "ERR",
-          message: "User or password incorrect",
+          message: "User or password incorrect"
         });
+        return;
       }
 
       const { _id: id, name, phone, roles } = checkUser;
@@ -118,6 +126,45 @@ const updateUser = (id, data) => {
         status: "Error",
         message: "An error occurred while updating the user",
         error: e
+      });
+    }
+  });
+};
+const updateRoles = (id, roles) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const checkUser = await User.findOne({ _id: id });
+
+      if (!checkUser) {
+        return resolve({
+          status: "ERR",
+          message: "User not found"
+        });
+      }
+
+      const updatedUser = await User.findByIdAndUpdate(
+        id,
+        { roles },
+        { new: true, runValidators: true }
+      );
+
+      if (!updatedUser) {
+        return resolve({
+          status: "ERR",
+          message: "Failed to update roles"
+        });
+      }
+
+      return resolve({
+        status: "OK",
+        message: "Roles updated successfully",
+        data: updatedUser
+      });
+    } catch (e) {
+      reject({
+        status: "ERR",
+        message: "An error occurred while updating roles",
+        error: e.message
       });
     }
   });
@@ -179,7 +226,7 @@ const getDetailsUser = (id) => {
     try {
       const user = await User.findOne({
         _id: id
-      });
+      }).select("-roles");
       if (user === null) {
         resolve({
           status: "Oke",
@@ -202,6 +249,7 @@ module.exports = {
   createUser,
   loginUser,
   updateUser,
+  updateRoles,
   deleteUser,
   deleteManyUser,
   getAllUser,

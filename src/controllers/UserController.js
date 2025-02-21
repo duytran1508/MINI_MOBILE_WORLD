@@ -68,19 +68,48 @@ const updateUser = async (req, res) => {
   try {
     const userId = req.params.id;
     const data = req.body;
-
+    
     if (!userId) {
       return res.status(200).json({
         status: "ERR",
         message: "the userId is required "
       });
     }
-
     const response = await UserService.updateUser(userId, data);
     return res.status(200).json(response);
   } catch (e) {
     return res.status(404).json({
       message: e
+    });
+  }
+};
+const updateRoles = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const { roles } = req.headers;
+    if (!userId) {
+      return res.status(400).json({
+        status: "ERR",
+        message: "User ID is required"
+      });
+    }
+
+    if (!roles) {
+      return res.status(400).json({
+        status: "ERR",
+        message: "Roles field is required"
+      
+      });
+    }
+
+    const response = await UserService.updateRoles(userId, roles);
+
+    return res.status(200).json(response);
+  } catch (e) {
+    return res.status(500).json({
+      status: "ERR",
+      message: "An error occurred while updating roles",
+      error: e.message
     });
   }
 };
@@ -252,6 +281,7 @@ module.exports = {
   loginUser,
   changePassword,
   updateUser,
+  updateRoles,
   deleteUser,
   deleteManyUser,
   getAllUser,
