@@ -7,53 +7,63 @@ const { v4: uuidv4 } = require("uuid");
 const serviceAccount = require("../config/serviceAccountKey.json");
 
 if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-      databaseURL: "https://<your-database-name>.firebaseio.com"
-    });
-  }
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    databaseURL: "https://<your-database-name>.firebaseio.com"
+  });
+}
 
 const bucket = admin.storage().bucket();
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-const uploadCategoryImages = upload.fields([{ name: "image", maxCount: 2 }]);
+const uploadCategoryImages = upload.fields([{ name: "icon", maxCount: 2 }]);
 
 const createCategory = async (req, res) => {
   try {
     const data = { ...req.body };
-    if (req.files) {
-      if (req.files["image"] && req.files["image"].length > 0) {
-        const imageFile = req.files["image"][0];
-        const folderName = "TTTN/category";
-        const imageName = `${folderName}/${Date.now()}-${
-          imageFile.originalname
-        }`;
-        const fileUpload = bucket.file(imageName);
-        const token = uuidv4();
 
-        await fileUpload.save(imageFile.buffer, {
-          contentType: imageFile.mimetype,
-          metadata: {
-            firebaseStorageDownloadTokens: token
-          }
-        });
+    // Xử lý ảnh icon nếu có
+    if (req.files && req.files["icon"] && req.files["icon"].length > 0) {
+      const imageFile = req.files["icon"][0];
+      const folderName = "DACN/category";
+      const imageIconName = `${folderName}/${Date.now()}-${imageFile.originalname}`;
+      const fileUpload = bucket.file(imageIconName);
+      const token = uuidv4();
 
-        data.imageUrl = `https://firebasestorage.googleapis.com/v0/b/${
-          process.env.REACT_APP_FIREBASE_STORAGE_BUCKET
-        }/o/${encodeURIComponent(imageName)}?alt=media&token=${token}`;
-      }
+      await fileUpload.save(imageFile.buffer, {
+        contentType: imageFile.mimetype,
+        metadata: {
+          firebaseStorageDownloadTokens: token
+        }
+      });
+
+      data.icon = `https://firebasestorage.googleapis.com/v0/b/${
+        process.env.REACT_APP_FIREBASE_STORAGE_BUCKET
+      }/o/${encodeURIComponent(imageIconName)}?alt=media&token=${token}`;
     }
 
+    // Kiểm tra nếu có parentCategory, kiểm tra danh mục cha có tồn tại không
+    if (data.parentCategory) {
+      const parentExists = await CategoryService.getCategoryById(data.parentCategory);
+      if (!parentExists) {
+        return res.status(400).json({ message: "Danh mục cha không tồn tại." });
+      }
+    } else {
+      data.parentCategory = null; // Nếu không có danh mục cha, set giá trị là null
+    }
+
+    // Tạo danh mục
     const result = await CategoryService.createCategory(data);
 
     res.status(200).json(result);
   } catch (error) {
     console.error(error);
-    res.status(500).send("Đã xảy ra lỗi khi thêm sản phẩm: " + error.message);
+    res.status(500).send("Đã xảy ra lỗi khi tạo danh mục: " + error.message);
   }
 };
+
 
 const getAllCategories = async (req, res) => {
   try {
@@ -70,6 +80,23 @@ const getCategoryById = async (req, res) => {
     res.status(200).json(result);
   } catch (e) {
     res.status(500).json({ status: "ERR", message: e.message });
+  }
+};
+const getAllParentCategories = async (req, res) => {
+  try {
+    const result = await CategoryService.getAllParentCategories();
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({ status: "ERR", message: error.message });
+  }
+};
+
+const getAllSubcategories = async (req, res) => {
+  try {
+    const result = await CategoryService.getAllSubcategories(req.params.parentId);
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({ status: "ERR", message: error.message });
   }
 };
 
@@ -99,6 +126,8 @@ module.exports = {
   createCategory,
   getAllCategories,
   getCategoryById,
+  getAllParentCategories,
+  getAllSubcategories,
   updateCategory,
   deleteCategory
 };

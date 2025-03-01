@@ -1,24 +1,38 @@
 const Category = require("../models/CategoryModel");
 const Product = require("../models/ProductModel");
 
-const createCategory = async (newProduct) => {
-  const { name, imageUrl } = newProduct;
+const createCategory = async (newCategory) => {
+  const { name, icon, parentCategory } = newCategory;
 
   try {
-    const createdProduct = await Category.create({
+    // Kiểm tra nếu có parentCategory thì phải đảm bảo danh mục cha tồn tại
+    let parent = null;
+    if (parentCategory) {
+      parent = await Category.findById(parentCategory);
+      if (!parent) {
+        throw {
+          status: "ERR",
+          message: "Danh mục cha không tồn tại"
+        };
+      }
+    }
+
+    // Tạo danh mục mới
+    const createdCategory = await Category.create({
       name: name || "",
-      imageUrl: imageUrl || ""
+      icon: icon || "",
+      parentCategory: parent ? parent._id : null // Nếu có parent thì lưu ID, nếu không thì null
     });
 
     return {
       status: "OK",
-      message: "Product created successfully",
-      data: createdProduct
+      message: "Category created successfully",
+      data: createdCategory
     };
   } catch (error) {
     throw {
       status: "ERR",
-      message: "Failed to create product",
+      message: "Failed to create category",
       error: error.message
     };
   }
@@ -38,6 +52,7 @@ const getAllCategories = () => {
     }
   });
 };
+
 
 const getCategoryById = (id) => {
   return new Promise(async (resolve, reject) => {
@@ -60,32 +75,87 @@ const getCategoryById = (id) => {
     }
   });
 };
-
-const updateCategory = (id, categoryData) => {
+const getAllParentCategories = () => {
   return new Promise(async (resolve, reject) => {
     try {
-      const updatedCategory = await Category.findByIdAndUpdate(
-        id,
-        categoryData,
-        { new: true }
-      );
-      if (!updatedCategory) {
-        resolve({
-          status: "ERR",
-          message: "Category not found"
-        });
-      } else {
-        resolve({
-          status: "OK",
-          message: "Category updated successfully",
-          data: updatedCategory
-        });
-      }
+      // Tìm tất cả danh mục KHÔNG có parentCategory (tức là danh mục gốc)
+      const parentCategories = await Category.find({ parentCategory: null });
+
+      resolve({
+        status: "OK",
+        message: "Fetched all parent categories",
+        data: parentCategories
+      });
     } catch (e) {
       reject(e);
     }
   });
 };
+
+
+const getAllSubcategories = (parentId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Kiểm tra danh mục cha có tồn tại không
+      const parentCategory = await Category.findById(parentId);
+      if (!parentCategory) {
+        return resolve({
+          status: "ERR",
+          message: "Parent category not found"
+        });
+      }
+
+      // Tìm tất cả danh mục có `parentCategory` là `parentId`
+      const subcategories = await Category.find({ parentCategory: parentId });
+
+      resolve({
+        status: "OK",
+        message: "Fetched all subcategories",
+        data: subcategories
+      });
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
+
+
+const updateCategory = (id, categoryData) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const existingCategory = await Category.findById(id);
+      if (!existingCategory) {
+        return resolve({ status: "ERR", message: "Category not found" });
+      }
+
+      const { name, icon, parentCategory } = categoryData;
+
+      // Kiểm tra nếu không có parentCategory -> Báo lỗi
+      if (!parentCategory) {
+        return resolve({ status: "ERR", message: "Parent category is required" });
+      }
+
+      // Kiểm tra nếu parentCategory tồn tại
+      const parentExists = await Category.findById(parentCategory);
+      if (!parentExists) {
+        return resolve({ status: "ERR", message: "Parent category not found" });
+      }
+
+      // Cập nhật danh mục
+      const updatedCategory = await Category.findByIdAndUpdate(
+        id,
+        { name, icon, parentCategory },
+        { new: true }
+      );
+
+      resolve({ status: "OK", message: "Category updated successfully", data: updatedCategory });
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
 
 const deleteCategory = (id) => {
   return new Promise(async (resolve, reject) => {
@@ -116,6 +186,8 @@ module.exports = {
   createCategory,
   getAllCategories,
   getCategoryById,
+  getAllParentCategories,
+  getAllSubcategories,
   updateCategory,
   deleteCategory
 };
