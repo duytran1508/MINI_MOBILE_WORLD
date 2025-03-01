@@ -1,4 +1,19 @@
+const mongoose = require("mongoose");
 const Product = require("../models/ProductModel");
+const Category = require("../models/CategoryModel");
+
+const convertToBase64 = (filePath) => {
+  return new Promise((resolve, reject) => {
+    fs.readFile(filePath, (err, data) => {
+      if (err) {
+        reject(err);
+      } else {
+        const base64Image = `data:image/jpeg;base64,${data.toString("base64")}`;
+        resolve(base64Image);
+      }
+    });
+  });
+};
 
 const createProduct = async (newProduct) => {
     const {
@@ -7,7 +22,7 @@ const createProduct = async (newProduct) => {
       prices,
       discount,
       imageUrls,
-      categoryName,
+      categoryId,
       description,
     } = newProduct;
   
@@ -30,7 +45,7 @@ const createProduct = async (newProduct) => {
         discount: discount || 0,
         promotionPrice,
         imageUrls: Array.isArray(imageUrls) ? imageUrls : [], // Đảm bảo là mảng
-        categoryName: categoryName || "",
+        categoryId: categoryId || "",
         description: description || "",
       });
   
@@ -160,18 +175,6 @@ const getAllProduct = async () => {
   });
 };
 
-const convertToBase64 = (filePath) => {
-  return new Promise((resolve, reject) => {
-    fs.readFile(filePath, (err, data) => {
-      if (err) {
-        reject(err);
-      } else {
-        const base64Image = `data:image/jpeg;base64,${data.toString("base64")}`;
-        resolve(base64Image);
-      }
-    });
-  });
-};
 
 const getDetailsProduct = (id) => {
   return new Promise(async (resolve, reject) => {
@@ -192,6 +195,104 @@ const getDetailsProduct = (id) => {
       });
     } catch (e) {
       reject(e);
+    }
+  });
+};
+
+const getAllProductsByParentCategory = (parentCategoryId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      console.log("📌 parentCategoryId:", parentCategoryId);
+
+      // Kiểm tra nếu parentCategoryId hợp lệ
+      if (!mongoose.Types.ObjectId.isValid(parentCategoryId)) {
+        return resolve({
+          status: "ERR",
+          message: "Invalid parentCategoryId format",
+        });
+      }
+
+      // Kiểm tra danh mục cha có tồn tại không
+      const parentCategory = await Category.findById(parentCategoryId);
+      if (!parentCategory) {
+        return resolve({
+          status: "ERR",
+          message: "Parent category not found",
+        });
+      }
+      // Lấy danh mục con dựa vào parentCategory
+      const subcategories = await Category.find({ parentCategory: new mongoose.Types.ObjectId(parentCategoryId) }).select("_id");
+      const subcategoryIds = subcategories.map((sub) => sub._id);
+      // Nếu không có danh mục con, trả về mảng rỗng luôn
+      if (subcategoryIds.length === 0) {
+        return resolve({
+          status: "OK",
+          message: "No subcategories found",
+          data: [],
+          total: 0,
+        });
+      }
+      // Tìm tất cả sản phẩm thuộc các danh mục con
+      const products = await Product.find({ categoryId: { $in: subcategoryIds } });
+      resolve({
+        status: "OK",
+        message: "Fetched all products in parent category",
+        data: products,
+        total: products.length,
+      });
+    } catch (e) {
+      console.error("Error fetching products:", e);
+      reject({
+        status: "ERR",
+        message: "An error occurred while fetching products",
+        error: e.message,
+      });
+    }
+  });
+};
+
+const getAllProductsBySubCategory = (subcategoryId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      console.log("📌 subcategoryId:", subcategoryId);
+
+      // Kiểm tra nếu subcategoryId hợp lệ
+      if (!mongoose.Types.ObjectId.isValid(subcategoryId)) {
+        return resolve({
+          status: "ERR",
+          message: "Invalid subcategoryId format",
+        });
+      }
+
+      // Kiểm tra xem danh mục con có tồn tại không
+      const subcategory = await Category.findById(subcategoryId);
+      if (!subcategory) {
+        return resolve({
+          status: "ERR",
+          message: "Subcategory not found",
+        });
+      }
+
+      console.log("📌 Subcategory found:", subcategory);
+
+      // Tìm tất cả sản phẩm có category thuộc danh mục con này
+      const products = await Product.find({ categoryId: new mongoose.Types.ObjectId(subcategoryId) });
+
+      console.log("📌 Products Found:", products.length);
+
+      resolve({
+        status: "OK",
+        message: "Fetched all products in subcategory",
+        data: products,
+        total: products.length,
+      });
+    } catch (e) {
+      console.error("Error fetching products by subcategory:", e);
+      reject({
+        status: "ERR",
+        message: "An error occurred while fetching products",
+        error: e.message,
+      });
     }
   });
 };
@@ -218,5 +319,7 @@ module.exports = {
   deleteProduct,
   deleteManyProduct,
   getAllProduct,
-  getAllType
+  getAllType,
+  getAllProductsByParentCategory,
+  getAllProductsBySubCategory
 };

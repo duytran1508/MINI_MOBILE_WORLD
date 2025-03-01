@@ -44,14 +44,14 @@ const createCategory = async (req, res) => {
       }/o/${encodeURIComponent(imageIconName)}?alt=media&token=${token}`;
     }
 
-    // Kiểm tra nếu có parentCategory, kiểm tra danh mục cha có tồn tại không
-    if (data.parentCategory) {
-      const parentExists = await CategoryService.getCategoryById(data.parentCategory);
+    // Kiểm tra nếu có type, kiểm tra danh mục cha có tồn tại không
+    if (data.type) {
+      const parentExists = await CategoryService.getCategoryById(data.type);
       if (!parentExists) {
         return res.status(400).json({ message: "Danh mục cha không tồn tại." });
       }
     } else {
-      data.parentCategory = null; // Nếu không có danh mục cha, set giá trị là null
+      data.type = null; // Nếu không có danh mục cha, set giá trị là null
     }
 
     // Tạo danh mục

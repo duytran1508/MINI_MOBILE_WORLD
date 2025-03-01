@@ -26,7 +26,7 @@ const productSchema = new mongoose.Schema(
       discount: { type: Number, default: 0 }, 
       promotionPrice: { type: Number, default: 0 }, 
       imageUrls: { type: [String], default: [] }, 
-      categoryName: { type: String, default: "" },
+      categoryId: { type: mongoose.Schema.Types.ObjectId, ref: "Category", required: true },
       description: {type: String, default: ""},
       reviews: [reviewSchema],
     averageRating: { type: Number, default: 0 },

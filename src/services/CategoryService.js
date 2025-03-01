@@ -2,13 +2,13 @@ const Category = require("../models/CategoryModel");
 const Product = require("../models/ProductModel");
 
 const createCategory = async (newCategory) => {
-  const { name, icon, parentCategory } = newCategory;
+  const { name, icon, type } = newCategory;
 
   try {
-    // Kiểm tra nếu có parentCategory thì phải đảm bảo danh mục cha tồn tại
+    // Kiểm tra nếu có type thì phải đảm bảo danh mục cha tồn tại
     let parent = null;
-    if (parentCategory) {
-      parent = await Category.findById(parentCategory);
+    if (type) {
+      parent = await Category.findById(type);
       if (!parent) {
         throw {
           status: "ERR",
@@ -21,7 +21,7 @@ const createCategory = async (newCategory) => {
     const createdCategory = await Category.create({
       name: name || "",
       icon: icon || "",
-      parentCategory: parent ? parent._id : null // Nếu có parent thì lưu ID, nếu không thì null
+      type: parent ? parent._id : null // Nếu có parent thì lưu ID, nếu không thì null
     });
 
     return {
@@ -78,8 +78,8 @@ const getCategoryById = (id) => {
 const getAllParentCategories = () => {
   return new Promise(async (resolve, reject) => {
     try {
-      // Tìm tất cả danh mục KHÔNG có parentCategory (tức là danh mục gốc)
-      const parentCategories = await Category.find({ parentCategory: null });
+      // Tìm tất cả danh mục KHÔNG có type (tức là danh mục gốc)
+      const parentCategories = await Category.find({ type: null });
 
       resolve({
         status: "OK",
@@ -97,16 +97,16 @@ const getAllSubcategories = (parentId) => {
   return new Promise(async (resolve, reject) => {
     try {
       // Kiểm tra danh mục cha có tồn tại không
-      const parentCategory = await Category.findById(parentId);
-      if (!parentCategory) {
+      const type = await Category.findById(parentId);
+      if (!type) {
         return resolve({
           status: "ERR",
           message: "Parent category not found"
         });
       }
 
-      // Tìm tất cả danh mục có `parentCategory` là `parentId`
-      const subcategories = await Category.find({ parentCategory: parentId });
+      // Tìm tất cả danh mục có `type` là `parentId`
+      const subcategories = await Category.find({ type: parentId });
 
       resolve({
         status: "OK",
@@ -129,15 +129,15 @@ const updateCategory = (id, categoryData) => {
         return resolve({ status: "ERR", message: "Category not found" });
       }
 
-      const { name, icon, parentCategory } = categoryData;
+      const { name, icon, type } = categoryData;
 
-      // Kiểm tra nếu không có parentCategory -> Báo lỗi
-      if (!parentCategory) {
+      // Kiểm tra nếu không có type -> Báo lỗi
+      if (!type) {
         return resolve({ status: "ERR", message: "Parent category is required" });
       }
 
-      // Kiểm tra nếu parentCategory tồn tại
-      const parentExists = await Category.findById(parentCategory);
+      // Kiểm tra nếu type tồn tại
+      const parentExists = await Category.findById(type);
       if (!parentExists) {
         return resolve({ status: "ERR", message: "Parent category not found" });
       }
@@ -145,7 +145,7 @@ const updateCategory = (id, categoryData) => {
       // Cập nhật danh mục
       const updatedCategory = await Category.findByIdAndUpdate(
         id,
-        { name, icon, parentCategory },
+        { name, icon, type },
         { new: true }
       );
 

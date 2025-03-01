@@ -8,6 +8,9 @@ router.put("/update/:id",productController.uploadProductImages,productController
 router.get("/get-details/:id", productController.getDetailsProduct);
 router.delete("/delete-product/:id", productController.deleteProduct);
 router.get("/getAllProduct", productController.getAllProduct);
+router.get("/getallproducttype/:id", productController.getAllProductsByParentCategory);
+router.get("/getallproductsub/:id", productController.getAllProductsBySubCategory);
+
 router.get("/get-type", productController.getAllType);
 
 module.exports = router;

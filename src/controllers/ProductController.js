@@ -5,6 +5,7 @@ require("dotenv").config();
 const { v4: uuidv4 } = require("uuid");
 const serviceAccount = require("../config/serviceAccountKey.json");
 const Product = require("../models/ProductModel");
+const mongoose = require("mongoose")
 
 // Khởi tạo Firebase Admin SDK
 admin.initializeApp({
@@ -194,6 +195,51 @@ const getDetailsProduct = async (req, res) => {
   }
 };
 
+const getAllProductsByParentCategory = async (req, res) => {
+  try {
+    const { id: parentCategoryId } = req.params;
+
+    if (!parentCategoryId) {
+      return res.status(400).json({ status: "ERR", message: "The parentCategoryId is required" });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(parentCategoryId)) {
+      return res.status(400).json({ status: "ERR", message: "Invalid parentCategoryId format" });
+    }
+
+    console.log("parentCategoryId:", parentCategoryId); // Debug ID
+
+    const response = await ProductService.getAllProductsByParentCategory(parentCategoryId);
+    return res.status(200).json(response);
+  } catch (error) {
+    console.error("Error fetching products by parent category:", error);
+    return res.status(500).json({ message: "An error occurred", error: error.message });
+  }
+};
+
+
+const getAllProductsBySubCategory = async (req, res) => {
+  try {
+    const { id: subcategoryId } = req.params;
+
+    if (!subcategoryId) {
+      return res.status(400).json({ status: "ERR", message: "The subcategoryId is required" });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(subcategoryId)) {
+      return res.status(400).json({ status: "ERR", message: "Invalid subcategoryId format" });
+    }
+
+    console.log("subcategoryId:", subcategoryId); // Debug ID
+
+    const response = await ProductService.getAllProductsBySubCategory(subcategoryId);
+    return res.status(200).json(response);
+  } catch (error) {
+    console.error("Error fetching products by subcategory:", error);
+    return res.status(500).json({ message: "An error occurred while fetching products by subcategory.", error: error.message });
+  }
+};
+
 const getAllType = async (req, res) => {
   try {
     const response = await ProductService.getAllType();
@@ -214,5 +260,7 @@ module.exports = {
   deleteProduct,
   deleteManyProduct,
   getAllProduct,
+  getAllProductsByParentCategory,
+  getAllProductsBySubCategory,
   getAllType
 };
