@@ -8,7 +8,7 @@ router.get("/get-details/:id", categoryController.getCategoryById);
 router.delete("/delete/:id", categoryController.deleteCategory);
 router.get("/getAll", categoryController.getAllCategories);
 router.get("/get-parents", categoryController.getAllParentCategories);
-router.get("/get-subcategories/:parentId", categoryController.getAllSubcategories);
+router.get("/get-subcategories/:id", categoryController.getAllSubcategories);
 
 
 

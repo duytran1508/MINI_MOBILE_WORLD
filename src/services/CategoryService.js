@@ -1,14 +1,16 @@
 const Category = require("../models/CategoryModel");
 const Product = require("../models/ProductModel");
+const mongoose = require("mongoose");
+
 
 const createCategory = async (newCategory) => {
-  const { name, icon, type } = newCategory;
+  const { name, icon, parentCategory } = newCategory;
 
   try {
-    // Kiểm tra nếu có type thì phải đảm bảo danh mục cha tồn tại
+    // Kiểm tra nếu có parentCategory thì phải đảm bảo danh mục cha tồn tại
     let parent = null;
-    if (type) {
-      parent = await Category.findById(type);
+    if (parentCategory) {
+      parent = await Category.findById(parentCategory);
       if (!parent) {
         throw {
           status: "ERR",
@@ -21,7 +23,7 @@ const createCategory = async (newCategory) => {
     const createdCategory = await Category.create({
       name: name || "",
       icon: icon || "",
-      type: parent ? parent._id : null // Nếu có parent thì lưu ID, nếu không thì null
+      parentCategory: parent ? parent._id : null // Nếu có parent thì lưu ID, nếu không thì null
     });
 
     return {
@@ -78,8 +80,8 @@ const getCategoryById = (id) => {
 const getAllParentCategories = () => {
   return new Promise(async (resolve, reject) => {
     try {
-      // Tìm tất cả danh mục KHÔNG có type (tức là danh mục gốc)
-      const parentCategories = await Category.find({ type: null });
+      // Tìm tất cả danh mục KHÔNG có parentCategory (tức là danh mục gốc)
+      const parentCategories = await Category.find({ parentCategory: null });
 
       resolve({
         status: "OK",
@@ -93,24 +95,29 @@ const getAllParentCategories = () => {
 };
 
 
-const getAllSubcategories = (parentId) => {
+const getAllSubcategories = (id) => {
   return new Promise(async (resolve, reject) => {
     try {
-      // Kiểm tra danh mục cha có tồn tại không
-      const type = await Category.findById(parentId);
-      if (!type) {
-        return resolve({
-          status: "ERR",
-          message: "Parent category not found"
-        });
+      console.log("📌 Parent Category ID:", id);
+
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return resolve({ status: "ERR", message: "Invalid parent category ID" });
       }
 
-      // Tìm tất cả danh mục có `type` là `parentId`
-      const subcategories = await Category.find({ type: parentId });
+      // Kiểm tra danh mục cha có tồn tại không
+      const parentCategory = await Category.findById(id);
+      if (!parentCategory) {
+        return resolve({ status: "ERR", message: "Parent category not found" });
+      }
+
+      // Tìm tất cả danh mục con
+      const subcategories = await Category.find({ parentCategory: new mongoose.Types.ObjectId(id) });
+
+      console.log("📌 Subcategories Found:", subcategories);
 
       resolve({
         status: "OK",
-        message: "Fetched all subcategories",
+        message: subcategories.length ? "Fetched all subcategories" : "No subcategories found",
         data: subcategories
       });
     } catch (e) {
@@ -129,15 +136,15 @@ const updateCategory = (id, categoryData) => {
         return resolve({ status: "ERR", message: "Category not found" });
       }
 
-      const { name, icon, type } = categoryData;
+      const { name, icon, parentCategory } = categoryData;
 
-      // Kiểm tra nếu không có type -> Báo lỗi
-      if (!type) {
+      // Kiểm tra nếu không có parentCategory -> Báo lỗi
+      if (!parentCategory) {
         return resolve({ status: "ERR", message: "Parent category is required" });
       }
 
-      // Kiểm tra nếu type tồn tại
-      const parentExists = await Category.findById(type);
+      // Kiểm tra nếu parentCategory tồn tại
+      const parentExists = await Category.findById(parentCategory);
       if (!parentExists) {
         return resolve({ status: "ERR", message: "Parent category not found" });
       }
@@ -145,7 +152,7 @@ const updateCategory = (id, categoryData) => {
       // Cập nhật danh mục
       const updatedCategory = await Category.findByIdAndUpdate(
         id,
-        { name, icon, type },
+        { name, icon, parentCategory },
         { new: true }
       );
 
