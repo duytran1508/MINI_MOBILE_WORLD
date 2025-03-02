@@ -16,52 +16,59 @@ const convertToBase64 = (filePath) => {
 };
 
 const createProduct = async (newProduct) => {
-    const {
-      name,
-      quantityInStock,
-      prices,
-      discount,
-      imageUrls,
-      categoryId,
-      description,
-    } = newProduct;
-  
-    try {
+  const { ownerId, name, quantityInStock, prices, discount, imageUrls, categoryId, description } = newProduct;
+
+  try {
+      // Kiểm tra user có tồn tại và có quyền không (chỉ Admin hoặc Người bán)
+      const user = await User.findById(ownerId);
+      if (!user || (user.role !== 1 && user.role !== 0)) {
+          return { status: "ERR", message: "Bạn không có quyền thêm sản phẩm!" };
+      }
+
+      // Kiểm tra xem user có shop hay chưa
+      const shop = await Shop.findOne({ ownerId });
+      if (!shop) {
+          return { status: "ERR", message: "Bạn chưa có cửa hàng!" };
+      }
+
       // Kiểm tra giá trị hợp lệ
-      if (prices < 0 || discount < 0 || discount > 100) {
-        return {
-          status: "ERR",
-          message: "Giá hoặc giảm giá không hợp lệ"
-        };
+      if (prices < 0 || discount < 0 || discount > 100 || quantityInStock < 0) {
+          return { status: "ERR", message: "Giá, giảm giá hoặc số lượng tồn kho không hợp lệ!" };
       }
 
       // Tính giá khuyến mãi
       const promotionPrice = prices - (prices * (discount || 0)) / 100;
-  
+
+      // Tạo sản phẩm mới
       const createdProduct = await Product.create({
-        name: name || "",
-        quantityInStock: quantityInStock || 0,
-        prices: prices || 0,
-        discount: discount || 0,
-        promotionPrice,
-        imageUrls: Array.isArray(imageUrls) ? imageUrls : [], // Đảm bảo là mảng
-        categoryId: categoryId || "",
-        description: description || "",
+          name: name || "",
+          quantityInStock: quantityInStock || 0,
+          prices: prices || 0,
+          discount: discount || 0,
+          promotionPrice,
+          imageUrls: Array.isArray(imageUrls) ? imageUrls : [],
+          categoryId: categoryId || "",
+          description: description || "",
       });
-  
+
+      // Thêm sản phẩm vào danh sách sản phẩm của shop
+      shop.products.push(createdProduct._id);
+      await shop.save();
+
       return {
-        status: "OK",
-        message: "Product created successfully",
-        data: createdProduct
+          status: "OK",
+          message: "Thêm sản phẩm thành công!",
+          data: createdProduct
       };
-    } catch (error) {
-      throw {
-        status: "ERR",
-        message: "Failed to create product",
-        error: error.message
+  } catch (error) {
+      return {
+          status: "ERR",
+          message: "Không thể tạo sản phẩm!",
+          error: error.message
       };
-    }
+  }
 };
+
 
 const updateProduct = (id, data) => {
   return new Promise(async (resolve, reject) => {
@@ -156,48 +163,58 @@ const deleteManyProduct = (ids) => {
 
 const getAllProduct = async () => {
   return new Promise(async (resolve, reject) => {
-    try {
-      const allProducts = await Product.find();
-      const formattedProducts = allProducts.map((product) => {
-        return {
-          ...product.toObject(),
-        };
-      });
-      resolve({
-        status: "OK",
-        message: "success",
-        data: formattedProducts,
-        total: formattedProducts.length
-      });
-    } catch (e) {
-      reject(e);
-    }
+      try {
+          const allProducts = await Product.find()
+              .populate("categoryId", "name") // Lấy thông tin danh mục
+              .populate("shopId", "name");   // Lấy thông tin cửa hàng
+
+          resolve({
+              status: "OK",
+              message: "Lấy danh sách sản phẩm thành công!",
+              data: allProducts,
+              total: allProducts.length
+          });
+      } catch (e) {
+          reject({
+              status: "ERR",
+              message: "Lỗi khi lấy danh sách sản phẩm!",
+              error: e.message
+          });
+      }
   });
 };
+
 
 
 const getDetailsProduct = (id) => {
   return new Promise(async (resolve, reject) => {
-    try {
-      const product = await Product.findOne({
-        _id: id
-      });
-      if (product === null) {
-        resolve({
-          status: "Oke",
-          message: "Product is not defined"
-        });
+      try {
+          const product = await Product.findById(id)
+              .populate("categoryId", "name")
+              .populate("shopId", "name ownerId");
+
+          if (!product) {
+              return resolve({
+                  status: "ERR",
+                  message: "Sản phẩm không tồn tại!"
+              });
+          }
+
+          resolve({
+              status: "OK",
+              message: "Lấy chi tiết sản phẩm thành công!",
+              data: product
+          });
+      } catch (e) {
+          reject({
+              status: "ERR",
+              message: "Lỗi khi lấy chi tiết sản phẩm!",
+              error: e.message
+          });
       }
-      resolve({
-        status: "Oke",
-        massage: "success",
-        data: product
-      });
-    } catch (e) {
-      reject(e);
-    }
   });
 };
+
 
 const getAllProductsByParentCategory = (parentCategoryId) => {
   return new Promise(async (resolve, reject) => {

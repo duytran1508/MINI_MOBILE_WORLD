@@ -155,66 +155,67 @@ const getOrderById = (orderId) => {
     }
   });
 };
-const cancelOrder = async (orderId) => {
-  try {
-    const order = await Order.findById(orderId);
-    if (!order) {
-      throw { status: 404, message: "Order not found" };
-    }
-
-    if (order.status === "Delivered" || order.status === "Cancelled") {
-      throw { status: 400, message: "Order already delivered or cancelled" };
-    }
-
-    order.status = "Cancelled";
-
-    await order.save();
-
-    return order;
-  } catch (error) {
-    console.error("Error in cancelOrder service:", error);
-    throw {
-      status: error.status || 500,
-      message: error.message || "Internal server error"
-    };
-  }
-};
-
 const shipOrder = async (orderId) => {
   try {
-    const order = await Order.findById(orderId);
-    if (!order) {
-      throw { status: 404, message: "Order not found" };
-    }
+    const order = await Order.findById(orderId).populate("items.product");
+    if (!order) throw { status: 404, message: "Order not found" };
 
-    if (order.status !== "Pending") {
-      throw { status: 400, message: "Order is not in Pending status" };
+    if (order.status !== "Pending") throw { status: 400, message: "Order is not in Pending status" };
+
+    for (const item of order.items) {
+      const product = item.product;
+      if (!product) throw { status: 404, message: `Product not found for item ${item._id}` };
+
+      if (product.quantityInStock < item.quantity) throw { status: 400, message: `Not enough stock for product ${product.name}` };
+
+      product.quantityInStock -= item.quantity;
+      await product.save();
     }
 
     order.status = "Shipped";
-
     await order.save();
 
     return order;
   } catch (error) {
     console.error("Error in shipOrder service:", error);
-    throw {
-      status: error.status || 500,
-      message: error.message || "Internal server error"
-    };
+    throw { status: error.status || 500, message: error.message || "Internal server error" };
+  }
+};
+
+const cancelOrder = async (orderId) => {
+  try {
+    const order = await Order.findById(orderId).populate("items.product");
+    if (!order) throw { status: 404, message: "Order not found" };
+
+    if (order.status === "Delivered" || order.status === "Cancelled") throw { status: 400, message: "Order already delivered or cancelled" };
+
+    // Hoàn lại số lượng vào kho nếu đơn hàng đã ở trạng thái "Shipped"
+    if (order.status === "Shipped") {
+      for (const item of order.items) {
+        const product = item.product;
+        if (product) {
+          product.quantityInStock += item.quantity;
+          await product.save();
+        }
+      }
+    }
+
+    order.status = "Cancelled";
+    await order.save();
+
+    return order;
+  } catch (error) {
+    console.error("Error in cancelOrder service:", error);
+    throw { status: error.status || 500, message: error.message || "Internal server error" };
   }
 };
 
 const deliverOrder = async (orderId) => {
   try {
     const order = await Order.findById(orderId);
-    if (!order) {
-      throw { status: 404, message: "Order not found" };
-    }
+    if (!order) throw { status: 404, message: "Order not found" };
 
-    if (order.status !== "Shipped") {
-      throw { status: 400, message: "Order is not in Shipped status" };
-    }
+    if (order.status !== "Shipped") throw { status: 400, message: "Order is not in Shipped status" };
 
     order.status = "Delivered";
     order.isPaid = true;
@@ -223,12 +224,10 @@ const deliverOrder = async (orderId) => {
     return order;
   } catch (error) {
     console.error("Error in deliverOrder service:", error);
-    throw {
-      status: error.status || 500,
-      message: error.message || "Internal server error"
-    };
+    throw { status: error.status || 500, message: error.message || "Internal server error" };
   }
 };
+
 
 const updatePaymentStatus = async (orderId, isSuccess) => {
   console.log(isSuccess);

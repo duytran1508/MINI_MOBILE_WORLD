@@ -166,34 +166,47 @@ const deleteManyProduct = async (req, res) => {
 
 const getAllProduct = async (req, res) => {
   try {
-    const response = await ProductService.getAllProduct();
-    return res.status(200).json(response);
+      const { shopId, categoryId } = req.query; // Thêm điều kiện lọc nếu có
+      const response = await ProductService.getAllProduct(shopId, categoryId);
+      return res.status(200).json(response);
   } catch (error) {
-    console.error("Error fetching products:", error);
-    return res.status(500).json({
-      message: "An error occurred while fetching products.",
-      error: error.message
-    });
+      console.error("Lỗi khi lấy danh sách sản phẩm:", error);
+      return res.status(500).json({
+          status: "ERR",
+          message: "Lỗi khi lấy danh sách sản phẩm!",
+          error: error.message
+      });
   }
 };
 
+
 const getDetailsProduct = async (req, res) => {
   try {
-    const productId = req.params.id;
-    if (!productId) {
-      return res.status(200).json({
-        status: "ERR",
-        message: "the productId is required "
+      const productId = req.params.id;
+      if (!productId) {
+          return res.status(400).json({
+              status: "ERR",
+              message: "Thiếu productId!"
+          });
+      }
+
+      const response = await ProductService.getDetailsProduct(productId);
+      
+      if (response.status === "ERR") {
+          return res.status(404).json(response);
+      }
+
+      return res.status(200).json(response);
+  } catch (error) {
+      console.error("Lỗi khi lấy chi tiết sản phẩm:", error);
+      return res.status(500).json({
+          status: "ERR",
+          message: "Lỗi server khi lấy sản phẩm!",
+          error: error.message
       });
-    }
-    const response = await ProductService.getDetailsProduct(productId);
-    return res.status(200).json(response);
-  } catch (e) {
-    return res.status(404).json({
-      message: e
-    });
   }
 };
+
 
 const getAllProductsByParentCategory = async (req, res) => {
   try {

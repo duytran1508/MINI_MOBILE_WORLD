@@ -32,7 +32,7 @@ class OTPService {
     const subject = "Mã xác minh";
     const mailForm = mail(token, subject);
     const mailOptions = {
-      from: "Nhóm 10",
+      from: "Nhóm 5",
       to: email,
       subject,
       html: mailForm
@@ -59,11 +59,11 @@ class OTPService {
 
     const otpToken = token.slice(0, 16);
 
-    const subject = "HD TECH gửi đến bạn mật khẩu mới";
+    const subject = "AIRAIR TECH gửi đến bạn mật khẩu mới";
     const mailForm = mail(otpToken, subject);
 
     const mailOptions = {
-      from: "Nhóm 10",
+      from: "Nhóm 5",
       to: email,
       subject,
       html: mailForm
