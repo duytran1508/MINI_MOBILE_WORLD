@@ -16,56 +16,33 @@ const convertToBase64 = (filePath) => {
 };
 
 const createProduct = async (newProduct) => {
-  const { ownerId, name, quantityInStock, prices, discount, imageUrls, categoryId, description } = newProduct;
+  const { name, quantityInStock, prices, discount, imageUrls, categoryId, description } = newProduct;
 
   try {
-      // Kiểm tra user có tồn tại và có quyền không (chỉ Admin hoặc Người bán)
-      const user = await User.findById(ownerId);
-      if (!user || (user.role !== 1 && user.role !== 0)) {
-          return { status: "ERR", message: "Bạn không có quyền thêm sản phẩm!" };
-      }
+    const promotionPrice = prices - (prices * (discount || 0)) / 100;
 
-      // Kiểm tra xem user có shop hay chưa
-      const shop = await Shop.findOne({ ownerId });
-      if (!shop) {
-          return { status: "ERR", message: "Bạn chưa có cửa hàng!" };
-      }
+    const createdProduct = await Product.create({
+      name: name || "",
+      quantityInStock: quantityInStock || 0,
+      prices: prices || 0,
+      discount: discount || 0,
+      promotionPrice,
+      imageUrls: imageUrls || "",
+      categoryId,
+      description
+    });
 
-      // Kiểm tra giá trị hợp lệ
-      if (prices < 0 || discount < 0 || discount > 100 || quantityInStock < 0) {
-          return { status: "ERR", message: "Giá, giảm giá hoặc số lượng tồn kho không hợp lệ!" };
-      }
-
-      // Tính giá khuyến mãi
-      const promotionPrice = prices - (prices * (discount || 0)) / 100;
-
-      // Tạo sản phẩm mới
-      const createdProduct = await Product.create({
-          name: name || "",
-          quantityInStock: quantityInStock || 0,
-          prices: prices || 0,
-          discount: discount || 0,
-          promotionPrice,
-          imageUrls: Array.isArray(imageUrls) ? imageUrls : [],
-          categoryId: categoryId || "",
-          description: description || "",
-      });
-
-      // Thêm sản phẩm vào danh sách sản phẩm của shop
-      shop.products.push(createdProduct._id);
-      await shop.save();
-
-      return {
-          status: "OK",
-          message: "Thêm sản phẩm thành công!",
-          data: createdProduct
-      };
+    return {
+      status: "OK",
+      message: "Product created successfully",
+      data: createdProduct
+    };
   } catch (error) {
-      return {
-          status: "ERR",
-          message: "Không thể tạo sản phẩm!",
-          error: error.message
-      };
+    throw {
+      status: "ERR",
+      message: "Failed to create product",
+      error: error.message
+    };
   }
 };
 
