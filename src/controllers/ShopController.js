@@ -4,16 +4,16 @@ const ShopService = require("../services/ShopService");
 const createShop = async (req, res) => {
     try {
         const shop = await ShopService.createShop(req.body);
-        res.status(201).json({ message: "Tạo cửa hàng thành công!", shop });
+        res.status(201).json(shop);
     } catch (error) {
         res.status(error.status || 500).json({ message: error.message || "Lỗi server" });
     }
 };
 
-// Xóa cửa hàng
+// Xóa cửa hàng (không cần kiểm tra quyền, đã có middleware)
 const deleteShop = async (req, res) => {
     try {
-        const response = await ShopService.deleteShop({ userId: req.body.userId, shopId: req.params.shopId });
+        const response = await ShopService.deleteShop(req.params.shopId);
         res.status(200).json(response);
     } catch (error) {
         res.status(error.status || 500).json({ message: error.message || "Lỗi server" });
@@ -40,9 +40,35 @@ const getShopById = async (req, res) => {
     }
 };
 
+const getunShops = async (req, res) => {
+    try {
+        const shops = await ShopService.find({ isApproved: false });
+        res.status(200).json({ success: true, data: shops });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Lỗi khi lấy danh sách shop chưa duyệt", error });
+    }
+};
+
+const approveShop = async (req, res) => {
+    try {
+        const { shopId } = req.params;
+        const updatedShop = await ShopService.findByIdAndUpdate(shopId, { isApproved: true }, { new: true });
+
+        if (!updatedShop) {
+            return res.status(404).json({ success: false, message: "Không tìm thấy shop" });
+        }
+
+        res.status(200).json({ success: true, message: "Shop đã được duyệt", data: updatedShop });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Lỗi khi duyệt shop", error });
+    }
+};
+
 module.exports = {
     createShop,
     deleteShop,
     getAllShops,
     getShopById,
+    getunShops,
+    approveShop
 };

@@ -30,7 +30,18 @@ const createProduct = async (req, res) => {
     const data = { ...req.body };
     data.imageUrls = [];
 
-    // Kiểm tra nếu có ảnh gửi lên
+    // Kiểm tra nếu thiếu shopId
+    if (!data.shopId) {
+      return res.status(400).json({ status: "ERR", message: "Thiếu shopId" });
+    }
+
+    // Kiểm tra shopId có tồn tại không
+    const shopExists = await Shop.findById(data.shopId);
+    if (!shopExists) {
+      return res.status(404).json({ status: "ERR", message: "Cửa hàng không tồn tại" });
+    }
+
+    // Xử lý upload ảnh lên Firebase Storage
     if (req.files && req.files.length > 0) {
       for (const imageFile of req.files) {
         const folderName = "TTTN/products";
@@ -57,6 +68,7 @@ const createProduct = async (req, res) => {
     res.status(500).json({ status: "ERR", message: "Error creating product", error: error.message });
   }
 };
+
 
 /**
  * Cập nhật sản phẩm

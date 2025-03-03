@@ -16,35 +16,47 @@ const convertToBase64 = (filePath) => {
 };
 
 const createProduct = async (newProduct) => {
-  const { name, quantityInStock, prices, discount, imageUrls, categoryId, description } = newProduct;
-
   try {
-    const promotionPrice = prices - (prices * (discount || 0)) / 100;
+      const { name, quantityInStock, prices, discount = 0, imageUrls, categoryId, shopId, description } = newProduct;
 
-    const createdProduct = await Product.create({
-      name: name || "",
-      quantityInStock: quantityInStock || 0,
-      prices: prices || 0,
-      discount: discount || 0,
-      promotionPrice,
-      imageUrls: imageUrls || "",
-      categoryId,
-      description
-    });
+      // Kiểm tra trường bắt buộc
+      if (!name || !prices || !categoryId || !shopId) {
+          return {
+              status: "ERR",
+              message: "Thiếu thông tin bắt buộc (name, prices, categoryId, shopId)"
+          };
+      }
 
-    return {
-      status: "OK",
-      message: "Product created successfully",
-      data: createdProduct
-    };
+      // Tính toán giá khuyến mãi (nếu có giảm giá)
+      const promotionPrice = prices - (prices * discount) / 100;
+
+      // Tạo sản phẩm mới
+      const createdProduct = await Product.create({
+          name,
+          quantityInStock: quantityInStock ?? 0,
+          prices,
+          discount,
+          promotionPrice,
+          imageUrls: imageUrls ?? [],
+          categoryId,
+          shopId,  // 🔥 Đảm bảo sản phẩm thuộc một shop cụ thể
+          description: description || ""
+      });
+
+      return {
+          status: "OK",
+          message: "Sản phẩm đã được tạo thành công",
+          data: createdProduct
+      };
   } catch (error) {
-    throw {
-      status: "ERR",
-      message: "Failed to create product",
-      error: error.message
-    };
+      return {
+          status: "ERR",
+          message: "Lỗi khi tạo sản phẩm",
+          error: error.message
+      };
   }
 };
+
 
 
 const updateProduct = (id, data) => {
