@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema(
         password: { type: String, required: true },
         confirmPassword: { type: String },
         roles: { type: Number, default: 2, enum: [0, 1, 2], required: true }, 
+        requestUpgrade: { type: Boolean, default: false },
         phone: { type: Number, required: true },
         access_token: { type: String },
         refresh_token: { type: String },

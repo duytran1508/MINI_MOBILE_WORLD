@@ -276,6 +276,61 @@ const changePassword = async (req, res) => {
   }
 };
 
+const requestUpgrade = async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        status: "ERR",
+        message: "User ID không được để trống",
+      });
+    }
+
+    const response = await UserService.requestSellerUpgrade(userId);
+    return res.status(response.status === "OK" ? 200 : 400).json(response);
+  } catch (error) {
+    return res.status(500).json({
+      status: "ERR",
+      message: "Lỗi máy chủ: " + error.message,
+    });
+  }
+};
+
+const getPendingSellers = async (req, res) => {
+  try {
+    const response = await UserService.getPendingSellerRequests();
+    return res.status(response.status === "OK" ? 200 : 400).json(response);
+  } catch (error) {
+    return res.status(500).json({
+      status: "ERR",
+      message: "Lỗi máy chủ: " + error.message,
+    });
+  }
+};
+
+const upgradeToSeller = async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        status: "ERR",
+        message: "User ID không được để trống",
+      });
+    }
+
+    const response = await UserService.upgradeUserRole(userId);
+    return res.status(response.status === "OK" ? 200 : 400).json(response);
+  } catch (error) {
+    return res.status(500).json({
+      status: "ERR",
+      message: "Lỗi máy chủ: " + error.message,
+    });
+  }
+};
+
+
 module.exports = {
   createUser,
   loginUser,
@@ -287,5 +342,8 @@ module.exports = {
   getAllUser,
   getDetailsUser,
   refreshToken,
-  requestPasswordReset
+  requestPasswordReset,
+  requestUpgrade,
+  getPendingSellers,
+  upgradeToSeller,
 };

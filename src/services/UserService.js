@@ -245,6 +245,76 @@ const getDetailsUser = (id) => {
   });
 };
 
+const requestSellerUpgrade = (userId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const user = await User.findById(userId);
+
+      if (!user) {
+        return resolve({ status: "ERR", message: "Người dùng không tồn tại" });
+      }
+
+      if (user.requestUpgrade) {
+        return resolve({ status: "ERR", message: "Bạn đã gửi yêu cầu trước đó" });
+      }
+
+      user.requestUpgrade = true;
+      await user.save();
+
+      resolve({
+        status: "OK",
+        message: "Yêu cầu nâng cấp đã được gửi thành công",
+      });
+    } catch (error) {
+      reject({ status: "ERR", message: "Lỗi: " + error.message });
+    }
+  });
+};
+
+const getPendingSellerRequests = () => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const pendingSellers = await User.find({ roles: 2, requestUpgrade: true }).select("name email phone");
+
+      resolve({
+        status: "OK",
+        message: "Danh sách người dùng yêu cầu nâng cấp",
+        users: pendingSellers,
+      });
+    } catch (error) {
+      reject({ status: "ERR", message: "Lỗi: " + error.message });
+    }
+  });
+};
+
+const upgradeUserRole = (userId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const user = await User.findById(userId);
+
+      if (!user) {
+        return resolve({ status: "ERR", message: "Người dùng không tồn tại" });
+      }
+
+      if (user.roles !== 2 || !user.requestUpgrade) {
+        return resolve({ status: "ERR", message: "Người dùng không hợp lệ để nâng cấp" });
+      }
+
+      user.roles = 1; // Chuyển thành người bán
+      user.requestUpgrade = false; // Hủy trạng thái yêu cầu sau khi duyệt
+      await user.save();
+
+      resolve({
+        status: "OK",
+        message: "Nâng cấp tài khoản thành công",
+        user,
+      });
+    } catch (error) {
+      reject({ status: "ERR", message: "Lỗi: " + error.message });
+    }
+  });
+};
+
 module.exports = {
   createUser,
   loginUser,
@@ -253,5 +323,8 @@ module.exports = {
   deleteUser,
   deleteManyUser,
   getAllUser,
-  getDetailsUser
+  getDetailsUser,
+  requestSellerUpgrade,
+  getPendingSellerRequests,
+  upgradeUserRole,
 };
