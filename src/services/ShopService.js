@@ -7,46 +7,35 @@ const User = require("../models/UserModel");
 const createShop = async (userId, shopData) => {
     try {
       const user = await User.findById(userId);
-      
+  
       if (!user) {
-        return {
-          status: "ERR",
-          message: "Người dùng không tồn tại",
-        };
+        return { status: "ERR", message: "Người dùng không tồn tại" };
       }
   
       if (user.roles !== 1) {
-        return {
-          status: "ERR",
-          message: "Bạn không có quyền tạo cửa hàng",
-        };
+        return { status: "ERR", message: "Bạn không có quyền tạo cửa hàng" };
       }
   
       if (user.shopId) {
-        return {
-          status: "ERR",
-          message: "Mỗi người bán chỉ có thể có một cửa hàng",
-        };
+        return { status: "ERR", message: "Mỗi người bán chỉ có thể có một cửa hàng" };
       }
   
-      const newShop = await Shop.create(shopData);
+      const newShop = await Shop.create({
+        name: shopData.name,
+        description: shopData.description,
+        ownerId: userId,
+      });
   
-      // Gán shopId cho user
+      // Cập nhật shopId vào user
       user.shopId = newShop._id;
       await user.save();
   
-      return {
-        status: "OK",
-        message: "Tạo cửa hàng thành công",
-        shop: newShop,
-      };
+      return { status: "OK", message: "Tạo cửa hàng thành công", shop: newShop };
     } catch (error) {
-      return {
-        status: "ERR",
-        message: "Lỗi máy chủ: " + error.message,
-      };
+      return { status: "ERR", message: "Lỗi máy chủ: " + error.message };
     }
   };
+  
 
 // Xóa cửa hàng và tất cả sản phẩm liên quan
 const deleteShop = async (shopId) => {

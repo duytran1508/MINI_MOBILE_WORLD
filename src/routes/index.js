@@ -25,7 +25,7 @@ const routes = (app) => {
   app.use("/api/check", AdminRouter);
   app.use("/api/voucher", VoucherRouter);
   app.use("/api/address", AddressRouter);
-  app.use("api/shop", ShopRouter);
+  app.use("/api/shop", ShopRouter);
 
 };
 module.exports = routes;

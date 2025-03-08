@@ -124,7 +124,7 @@ module.exports.mail = (token, subject) => `
 															<td class="pad">
 																<div style="font-family: sans-serif">
 																	<div class style="font-size: 14px; font-family: 'Varela Round', 'Trebuchet MS', Helvetica, sans-serif; mso-line-height-alt: 21px; color: #ffffff; line-height: 1.5;">
-																		<p style="margin: 0; font-size: 14px; text-align: center; mso-line-height-alt: 21px;">Cảm ơn bạn đã đến với HD TECH nhóm 10 Đồ án chuyên ngành.</p>
+																		<p style="margin: 0; font-size: 14px; text-align: center; mso-line-height-alt: 21px;">Cảm ơn bạn đã đến với HD TECH nhóm 5 Thực tập tốt nghiệp .</p>
 																	</div>
 																</div>
 															</td>
