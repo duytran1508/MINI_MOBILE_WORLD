@@ -15,4 +15,8 @@ router.get("/get-details/:id",authUserMiddleWare,userController.getDetailsUser);
 router.post("/refresh-token", userController.refreshToken);
 router.post("/request-password-reset", userController.requestPasswordReset);
 router.put("/change-password/:id", userController.changePassword);
+router.post("/request-upgrade", userController.requestUpgrade);
+router.get("/get-pending-sellers", userController.getPendingSellers);
+router.put("/upgrade-role", userController.upgradeToSeller);
+
 module.exports = router;
