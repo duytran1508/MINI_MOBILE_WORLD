@@ -3,12 +3,26 @@ const ShopService = require("../services/ShopService");
 // Tạo cửa hàng
 const createShop = async (req, res) => {
     try {
-        const shop = await ShopService.createShop(req.body);
-        res.status(201).json(shop);
+      const {userId} = req.body;
+  
+      if (!userId) {
+        return res.status(400).json({
+          status: "ERR",
+          message: "Thiếu thông tin bắt buộc",
+        });
+      }
+  
+      const response = await ShopService.createShop(userId);
+  
+      return res.status(response.status === "OK" ? 200 : 400).json(response);
     } catch (error) {
-        res.status(error.status || 500).json({ message: error.message || "Lỗi server" });
+      return res.status(500).json({
+        status: "ERR",
+        message: "Lỗi máy chủ: " + error.message,
+      });
     }
-};
+  };
+  
 
 // Xóa cửa hàng (không cần kiểm tra quyền, đã có middleware)
 const deleteShop = async (req, res) => {

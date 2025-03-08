@@ -1,24 +1,52 @@
 const Shop = require("../models/ShopModel");
 const Product = require("../models/ProductModel");
 
-// Tạo cửa hàng (shop mới luôn mặc định chưa được duyệt)
-const createShop = async (shopData) => {
-    try {
-        const newShop = new Shop(shopData);
-        await newShop.save();
+const User = require("../models/UserModel");
 
+// Tạo cửa hàng (shop mới luôn mặc định chưa được duyệt)
+const createShop = async (userId, shopData) => {
+    try {
+      const user = await User.findById(userId);
+      
+      if (!user) {
         return {
-            status: "success",
-            message: "Cửa hàng đã được tạo, chờ xét duyệt từ admin",
-            data: newShop
+          status: "ERR",
+          message: "Người dùng không tồn tại",
         };
+      }
+  
+      if (user.roles !== 1) {
+        return {
+          status: "ERR",
+          message: "Bạn không có quyền tạo cửa hàng",
+        };
+      }
+  
+      if (user.shopId) {
+        return {
+          status: "ERR",
+          message: "Mỗi người bán chỉ có thể có một cửa hàng",
+        };
+      }
+  
+      const newShop = await Shop.create(shopData);
+  
+      // Gán shopId cho user
+      user.shopId = newShop._id;
+      await user.save();
+  
+      return {
+        status: "OK",
+        message: "Tạo cửa hàng thành công",
+        shop: newShop,
+      };
     } catch (error) {
-        return {
-            status: "ERR",
-            message: "Đã có lỗi xảy ra khi tạo cửa hàng: " + error.message
-        };
+      return {
+        status: "ERR",
+        message: "Lỗi máy chủ: " + error.message,
+      };
     }
-};
+  };
 
 // Xóa cửa hàng và tất cả sản phẩm liên quan
 const deleteShop = async (shopId) => {
