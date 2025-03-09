@@ -3,6 +3,7 @@ const ShopService = require("../services/ShopService");
 // Tạo cửa hàng
 const createShop = async (req, res) => {
     try {
+        console.log("User data from token:", req.user); // Debug user info
       const userId = req.user.id; // Lấy userId từ token nếu có auth
       const response = await ShopService.createShop(userId, req.body);
       return res.status(response.status === "OK" ? 201 : 400).json(response);
@@ -39,24 +40,20 @@ const getShopById = async (req, res) => {
 };
 const getunShops = async (req, res) => {
     try {
-        const shops = await ShopService.find({ isApproved: false });
-        res.status(200).json({ success: true, data: shops });
+        const response = await ShopService.getunShops();
+        return res.status(response.status === "OK" ? 200 : 500).json(response);
     } catch (error) {
-        res.status(500).json({ success: false, message: "Lỗi khi lấy danh sách shop chưa duyệt", error });
+        return res.status(500).json({ status: "ERR", message: "Lỗi máy chủ: " + error.message });
     }
 };
 const approveShop = async (req, res) => {
     try {
         const { shopId } = req.params;
-        const updatedShop = await ShopService.findByIdAndUpdate(shopId, { isApproved: true }, { new: true });
+        const response = await ShopService.approveShop(shopId);
 
-        if (!updatedShop) {
-            return res.status(404).json({ success: false, message: "Không tìm thấy shop" });
-        }
-
-        res.status(200).json({ success: true, message: "Shop đã được duyệt", data: updatedShop });
+        return res.status(response.status === "OK" ? 200 : 400).json(response);
     } catch (error) {
-        res.status(500).json({ success: false, message: "Lỗi khi duyệt shop", error });
+        return res.status(500).json({ status: "ERR", message: "Lỗi máy chủ: " + error.message });
     }
 };
 

@@ -349,6 +349,8 @@ const getPendingSellers = async (req, res) => {
 
 const upgradeToSeller = async (req, res) => {
   try {
+    console.log("Received Data:", req.body); // Kiểm tra dữ liệu nhận được từ client
+
     const { userId } = req.body;
 
     if (!userId) {
@@ -359,14 +361,18 @@ const upgradeToSeller = async (req, res) => {
     }
 
     const response = await UserService.upgradeUserRole(userId);
+    console.log("Upgrade Response:", response); // Kiểm tra phản hồi từ service
+
     return res.status(response.status === "OK" ? 200 : 400).json(response);
   } catch (error) {
+    console.error("Server Error:", error.message); // Log lỗi chi tiết
     return res.status(500).json({
       status: "ERR",
       message: "Lỗi máy chủ: " + error.message,
     });
   }
 };
+
 
 
 module.exports = {
