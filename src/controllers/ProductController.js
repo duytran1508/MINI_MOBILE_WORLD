@@ -6,14 +6,12 @@ const { v4: uuidv4 } = require("uuid");
 const serviceAccount = require("../config/serviceAccountKey.json");
 const Product = require("../models/ProductModel");
 const mongoose = require("mongoose")
+const Shop = require("../models/ShopModel"); 
+
 
 // Khởi tạo Firebase Admin SDK
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET
-});
+const { bucket } = require("../config/firebase");
 
-const bucket = admin.storage().bucket();
 
 // Cấu hình Multer (Lưu trữ ảnh trên bộ nhớ)
 const storage = multer.memoryStorage();
@@ -22,9 +20,6 @@ const upload = multer({ storage: storage });
 // Cho phép upload nhiều ảnh với key "images"
 const uploadProductImages = upload.array("images", 5);
 
-/**
- * Tạo sản phẩm mới
- */
 const createProduct = async (req, res) => {
   try {
     const data = { ...req.body };
@@ -68,11 +63,6 @@ const createProduct = async (req, res) => {
     res.status(500).json({ status: "ERR", message: "Error creating product", error: error.message });
   }
 };
-
-
-/**
- * Cập nhật sản phẩm
- */
 const updateProduct = async (req, res) => {
   const dataUpdate = { ...req.body };
 
@@ -114,7 +104,6 @@ const updateProduct = async (req, res) => {
     return res.status(500).json({ status: "ERR", message: "Error updating product", error: error.message });
   }
 };
-
 const deleteOldImages = async (imageUrls) => {
   const deletePromises = imageUrls.map(async (oldImageUrl) => {
     const fileName = decodeURIComponent(oldImageUrl.split("/o/")[1].split("?alt=")[0]);
@@ -122,7 +111,6 @@ const deleteOldImages = async (imageUrls) => {
   });
   await Promise.all(deletePromises);
 };
-
 const uploadNewImages = async (files) => {
   const folderName = "TTTN/products";
   const uploadPromises = files.map(async (imageFile) => {
@@ -157,7 +145,6 @@ const deleteProduct = async (req, res) => {
     });
   }
 };
-
 const deleteManyProduct = async (req, res) => {
   try {
     const ids = req.body;
@@ -175,7 +162,6 @@ const deleteManyProduct = async (req, res) => {
     });
   }
 };
-
 const getAllProduct = async (req, res) => {
   try {
       const { shopId, categoryId } = req.query; // Thêm điều kiện lọc nếu có
@@ -190,8 +176,6 @@ const getAllProduct = async (req, res) => {
       });
   }
 };
-
-
 const getDetailsProduct = async (req, res) => {
   try {
       const productId = req.params.id;
@@ -218,8 +202,6 @@ const getDetailsProduct = async (req, res) => {
       });
   }
 };
-
-
 const getAllProductsByParentCategory = async (req, res) => {
   try {
     const { id: parentCategoryId } = req.params;
@@ -241,8 +223,6 @@ const getAllProductsByParentCategory = async (req, res) => {
     return res.status(500).json({ message: "An error occurred", error: error.message });
   }
 };
-
-
 const getAllProductsBySubCategory = async (req, res) => {
   try {
     const { id: subcategoryId } = req.params;
@@ -264,7 +244,6 @@ const getAllProductsBySubCategory = async (req, res) => {
     return res.status(500).json({ message: "An error occurred while fetching products by subcategory.", error: error.message });
   }
 };
-
 const getAllType = async (req, res) => {
   try {
     const response = await ProductService.getAllType();
@@ -275,7 +254,15 @@ const getAllType = async (req, res) => {
     });
   }
 };
-
+const getAllProductsByShop = async (req, res) => {
+  try {
+      const shopId = req.params.shopId;
+      const products = await ProductService.getAllProductsByShop(shopId);
+      res.status(200).json(products);
+  } catch (error) {
+      res.status(500).json({ message: "Lỗi khi lấy danh sách sản phẩm của shop", error });
+  }
+};
 
 module.exports = {
   uploadProductImages,
@@ -287,5 +274,6 @@ module.exports = {
   getAllProduct,
   getAllProductsByParentCategory,
   getAllProductsBySubCategory,
+  getAllProductsByShop,
   getAllType
 };

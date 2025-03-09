@@ -4,6 +4,62 @@ const OTPService = require("../services/OtpService");
 const User = require("../models/UserModel");
 const TempUser = require("../models/tempUserModel");
 const bcrypt = require("bcrypt");
+const multer = require("multer");
+require("dotenv").config();
+const { v4: uuidv4 } = require("uuid");
+
+// Import Firebase từ file cấu hình
+const { bucket } = require("../config/firebase");
+
+// Cấu hình multer để lưu trữ file trong bộ nhớ
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
+const uploadProductImages = upload.array("images", 5);
+
+const requestUpgrade = async (req, res) => {
+  try {
+    const { userId, reason, businessPlan } = req.body;
+
+    if (!userId || !reason || !businessPlan || !req.files || req.files.length === 0) {
+      return res.status(400).json({
+        status: "ERR",
+        message: "Vui lòng cung cấp đầy đủ thông tin và tài liệu xác minh.",
+      });
+    }
+
+    const uploadedFiles = [];
+    for (const imageFile of req.files) {
+      const folderName = "TTTN/products";
+      const imageFileName = `${folderName}/${Date.now()}-${imageFile.originalname}`;
+      const fileUpload = bucket.file(imageFileName);
+      const token = uuidv4();
+
+      await fileUpload.save(imageFile.buffer, {
+        metadata: { firebaseStorageDownloadTokens: token, contentType: imageFile.mimetype },
+      });
+
+      const imageUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(imageFileName)}?alt=media&token=${token}`;
+      uploadedFiles.push(imageUrl);
+    }
+
+    const response = await UserService.requestSellerUpgrade({
+      userId,
+      reason,
+      businessPlan,
+      verificationDocs: uploadedFiles,
+    });
+
+    return res.status(response.status === "OK" ? 200 : 400).json(response);
+  } catch (error) {
+    return res.status(500).json({
+      status: "ERR",
+      message: "Lỗi máy chủ: " + error.message,
+    });
+  }
+};
+
+
+
 
 const createUser = async (req, res) => {
   try {
@@ -276,27 +332,6 @@ const changePassword = async (req, res) => {
   }
 };
 
-const requestUpgrade = async (req, res) => {
-  try {
-    const { userId } = req.body;
-
-    if (!userId) {
-      return res.status(400).json({
-        status: "ERR",
-        message: "User ID không được để trống",
-      });
-    }
-
-    const response = await UserService.requestSellerUpgrade(userId);
-    return res.status(response.status === "OK" ? 200 : 400).json(response);
-  } catch (error) {
-    return res.status(500).json({
-      status: "ERR",
-      message: "Lỗi máy chủ: " + error.message,
-    });
-  }
-};
-
 const getPendingSellers = async (req, res) => {
   try {
     const response = await UserService.getPendingSellerRequests();
@@ -346,4 +381,5 @@ module.exports = {
   requestUpgrade,
   getPendingSellers,
   upgradeToSeller,
+  uploadProductImages
 };

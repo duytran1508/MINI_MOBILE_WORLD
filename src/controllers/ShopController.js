@@ -10,8 +10,6 @@ const createShop = async (req, res) => {
       return res.status(500).json({ status: "ERR", message: "Lỗi máy chủ: " + error.message });
     }
   };
-  
-
 // Xóa cửa hàng (không cần kiểm tra quyền, đã có middleware)
 const deleteShop = async (req, res) => {
     try {
@@ -21,7 +19,6 @@ const deleteShop = async (req, res) => {
         res.status(error.status || 500).json({ message: error.message || "Lỗi server" });
     }
 };
-
 // Lấy danh sách cửa hàng
 const getAllShops = async (req, res) => {
     try {
@@ -31,7 +28,6 @@ const getAllShops = async (req, res) => {
         res.status(500).json({ message: "Lỗi server", error });
     }
 };
-
 // Lấy thông tin chi tiết cửa hàng
 const getShopById = async (req, res) => {
     try {
@@ -41,7 +37,6 @@ const getShopById = async (req, res) => {
         res.status(error.status || 500).json({ message: error.message || "Lỗi server" });
     }
 };
-
 const getunShops = async (req, res) => {
     try {
         const shops = await ShopService.find({ isApproved: false });
@@ -50,7 +45,6 @@ const getunShops = async (req, res) => {
         res.status(500).json({ success: false, message: "Lỗi khi lấy danh sách shop chưa duyệt", error });
     }
 };
-
 const approveShop = async (req, res) => {
     try {
         const { shopId } = req.params;

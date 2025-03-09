@@ -27,7 +27,7 @@ const createCategory = async (req, res) => {
     // Xử lý ảnh icon nếu có
     if (req.files && req.files["icon"] && req.files["icon"].length > 0) {
       const imageFile = req.files["icon"][0];
-      const folderName = "DACN/category";
+      const folderName = "TTTN/category";
       const imageIconName = `${folderName}/${Date.now()}-${imageFile.originalname}`;
       const fileUpload = bucket.file(imageIconName);
       const token = uuidv4();
@@ -63,8 +63,6 @@ const createCategory = async (req, res) => {
     res.status(500).send("Đã xảy ra lỗi khi tạo danh mục: " + error.message);
   }
 };
-
-
 const getAllCategories = async (req, res) => {
   try {
     const result = await CategoryService.getAllCategories();
@@ -73,7 +71,6 @@ const getAllCategories = async (req, res) => {
     res.status(500).json({ status: "ERR", message: e.message });
   }
 };
-
 const getCategoryById = async (req, res) => {
   try {
     const result = await CategoryService.getCategoryById(req.params.id);
@@ -90,7 +87,6 @@ const getAllParentCategories = async (req, res) => {
     res.status(500).json({ status: "ERR", message: error.message });
   }
 };
-
 const getAllSubcategories = async (req, res) => {
   try {
     const result = await CategoryService.getAllSubcategories(req.params.id);
@@ -99,7 +95,6 @@ const getAllSubcategories = async (req, res) => {
     res.status(500).json({ status: "ERR", message: error.message });
   }
 };
-
 const updateCategory = async (req, res) => {
   try {
     const result = await CategoryService.updateCategory(
@@ -111,7 +106,6 @@ const updateCategory = async (req, res) => {
     res.status(500).json({ status: "ERR", message: e.message });
   }
 };
-
 const deleteCategory = async (req, res) => {
   try {
     const result = await CategoryService.deleteCategory(req.params.id);

@@ -85,7 +85,6 @@ const getAllOrders = async (req, res) => {
     });
   }
 };
-
 const getOrderById = async (req, res) => {
   const { orderId } = req.params;
   try {
@@ -128,7 +127,6 @@ const cancelOrder = async (req, res) => {
     });
   }
 };
-
 const shipOrder = async (req, res) => {
   const { orderId } = req.body;
 
@@ -147,7 +145,6 @@ const shipOrder = async (req, res) => {
     });
   }
 };
-
 const deliverOrder = async (req, res) => {
   const { orderId } = req.body;
 

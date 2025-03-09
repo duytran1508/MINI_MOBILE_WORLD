@@ -39,7 +39,7 @@ const createProduct = async (newProduct) => {
           promotionPrice,
           imageUrls: imageUrls ?? [],
           categoryId,
-          shopId,  // 🔥 Đảm bảo sản phẩm thuộc một shop cụ thể
+          shopId,  
           description: description || ""
       });
 
@@ -318,6 +318,21 @@ const getAllType = () => {
   });
 };
 
+const getAllProductsByShop = (shopId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const products = await Product.find({ shopId: shopId });
+      resolve({
+        status: "Oke",
+        message: "Lấy danh sách sản phẩm của shop thành công",
+        data: products
+      });
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
 module.exports = {
   createProduct,
   updateProduct,
@@ -327,5 +342,6 @@ module.exports = {
   getAllProduct,
   getAllType,
   getAllProductsByParentCategory,
-  getAllProductsBySubCategory
+  getAllProductsBySubCategory,
+  getAllProductsByShop
 };

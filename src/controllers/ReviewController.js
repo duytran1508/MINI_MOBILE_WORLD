@@ -24,7 +24,6 @@ const addReview = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
 const getProductReviews = async (req, res) => {
   try {
     const { productId } = req.params;
@@ -36,7 +35,6 @@ const getProductReviews = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
 const addReplyToReview = async (req, res) => {
   try {
     const { productId, reviewId } = req.params;

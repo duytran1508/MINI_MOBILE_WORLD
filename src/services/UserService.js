@@ -245,7 +245,7 @@ const getDetailsUser = (id) => {
   });
 };
 
-const requestSellerUpgrade = (userId) => {
+const requestSellerUpgrade = ({ userId, reason, verificationDocs, businessPlan }) => {
   return new Promise(async (resolve, reject) => {
     try {
       const user = await User.findById(userId);
@@ -258,18 +258,30 @@ const requestSellerUpgrade = (userId) => {
         return resolve({ status: "ERR", message: "Bạn đã gửi yêu cầu trước đó" });
       }
 
+      // Cập nhật thông tin yêu cầu nâng cấp
       user.requestUpgrade = true;
+      user.upgradeReason = reason;
+      user.verificationDocs = verificationDocs; // Lưu danh sách URL ảnh
+      user.businessPlan = businessPlan;
+
       await user.save();
 
       resolve({
         status: "OK",
         message: "Yêu cầu nâng cấp đã được gửi thành công",
+        data: {
+          userId: user._id,
+          reason: user.upgradeReason,
+          verificationDocs: user.verificationDocs,
+          businessPlan: user.businessPlan,
+        },
       });
     } catch (error) {
       reject({ status: "ERR", message: "Lỗi: " + error.message });
     }
   });
 };
+
 
 const getPendingSellerRequests = () => {
   return new Promise(async (resolve, reject) => {
