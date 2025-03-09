@@ -4,7 +4,7 @@ const ShopService = require("../services/ShopService");
 const createShop = async (req, res) => {
     try {
         console.log("User data from token:", req.user); // Debug user info
-      const userId = req.user.id; // Lấy userId từ token nếu có auth
+      const userId = req.params.id; // Lấy userId từ token nếu có auth
       const response = await ShopService.createShop(userId, req.body);
       return res.status(response.status === "OK" ? 201 : 400).json(response);
     } catch (error) {

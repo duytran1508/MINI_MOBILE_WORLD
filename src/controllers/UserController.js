@@ -18,6 +18,8 @@ const uploadProductImages = upload.array("images", 5);
 
 const requestUpgrade = async (req, res) => {
   try {
+    console.log("Full Request Body:", req.body);
+
     const { userId, businessPlan, upgradeReason } = req.body || {}; // Tránh undefined
 
     if (!userId || !businessPlan || !upgradeReason || !req.files || req.files.length === 0) {
