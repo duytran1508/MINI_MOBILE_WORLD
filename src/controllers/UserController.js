@@ -18,12 +18,9 @@ const uploadProductImages = upload.array("images", 5);
 
 const requestUpgrade = async (req, res) => {
   try {
-    console.log("Received files:", req.files); // Debug kiểm tra file upload
-    console.log("Request body:", req.body); // Debug kiểm tra dữ liệu body
+    const { userId, businessPlan, upgradeReason } = req.body || {}; // Tránh undefined
 
-    const { userId, reason, businessPlan } = req.body;
-
-    if (!userId || !reason || !businessPlan || !req.files || req.files.length === 0) {
+    if (!userId || !businessPlan || !upgradeReason || !req.files || req.files.length === 0) {
       return res.status(400).json({
         status: "ERR",
         message: "Vui lòng cung cấp đầy đủ thông tin và tài liệu xác minh.",
@@ -45,22 +42,26 @@ const requestUpgrade = async (req, res) => {
       uploadedFiles.push(imageUrl);
     }
 
+    console.log("Received Data:", { userId, businessPlan, upgradeReason });
+
+    // Ép kiểu để tránh lỗi
     const response = await UserService.requestSellerUpgrade({
       userId,
-      reason,
-      businessPlan,
+      businessPlan: String(businessPlan || ""),  // Đảm bảo là string
+      upgradeReason: String(upgradeReason || ""), // Đảm bảo là string
       verificationDocs: uploadedFiles,
     });
 
     return res.status(response.status === "OK" ? 200 : 400).json(response);
   } catch (error) {
-    console.error("Lỗi máy chủ:", error); // In lỗi ra console
+    console.error("Lỗi máy chủ:", error);
     return res.status(500).json({
       status: "ERR",
       message: "Lỗi máy chủ: " + error.message,
     });
   }
 };
+
 
 
 const createUser = async (req, res) => {

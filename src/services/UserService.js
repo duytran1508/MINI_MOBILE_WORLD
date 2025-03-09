@@ -245,7 +245,7 @@ const getDetailsUser = (id) => {
   });
 };
 
-const requestSellerUpgrade = ({ userId, reason, verificationDocs, businessPlan }) => {
+const requestSellerUpgrade = ({ userId, verificationDocs, businessPlan, upgradeReason }) => {
   return new Promise(async (resolve, reject) => {
     try {
       const user = await User.findById(userId);
@@ -260,7 +260,7 @@ const requestSellerUpgrade = ({ userId, reason, verificationDocs, businessPlan }
 
       // Cập nhật thông tin yêu cầu nâng cấp
       user.requestUpgrade = true;
-      user.upgradeReason = reason;
+      user.upgradeReason = upgradeReason;
       user.verificationDocs = verificationDocs; // Lưu danh sách URL ảnh
       user.businessPlan = businessPlan;
 
@@ -271,7 +271,7 @@ const requestSellerUpgrade = ({ userId, reason, verificationDocs, businessPlan }
         message: "Yêu cầu nâng cấp đã được gửi thành công",
         data: {
           userId: user._id,
-          reason: user.upgradeReason,
+          upgradeReason: user.upgradeReason,
           verificationDocs: user.verificationDocs,
           businessPlan: user.businessPlan,
         },
