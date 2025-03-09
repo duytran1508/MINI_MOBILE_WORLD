@@ -1,11 +1,18 @@
 const AddressService = require("../services/AddressService");
 
+const mongoose = require("mongoose"); // Thêm dòng này nếu chưa có
+
 const createAddress = async (req, res) => {
   const { name, phone, email, address, userId } = req.body;
   console.log(name, phone, email, address, userId);
 
-  if (!name || !phone || !email || !address) {
+  if (!name || !phone || !email || !address || !userId) {
     return res.status(400).json({ message: "All fields are required!" });
+  }
+
+  // Kiểm tra xem userId có phải ObjectId hợp lệ không
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ message: "Invalid userId format!" });
   }
 
   try {
@@ -23,6 +30,7 @@ const createAddress = async (req, res) => {
     return res.status(500).json({ message: "Internal Server Error", error });
   }
 };
+
 
 const getAddresses = async (req, res) => {
   const { userId } = req.params;

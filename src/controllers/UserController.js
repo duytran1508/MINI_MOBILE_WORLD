@@ -18,6 +18,9 @@ const uploadProductImages = upload.array("images", 5);
 
 const requestUpgrade = async (req, res) => {
   try {
+    console.log("Received files:", req.files); // Debug kiểm tra file upload
+    console.log("Request body:", req.body); // Debug kiểm tra dữ liệu body
+
     const { userId, reason, businessPlan } = req.body;
 
     if (!userId || !reason || !businessPlan || !req.files || req.files.length === 0) {
@@ -51,14 +54,13 @@ const requestUpgrade = async (req, res) => {
 
     return res.status(response.status === "OK" ? 200 : 400).json(response);
   } catch (error) {
+    console.error("Lỗi máy chủ:", error); // In lỗi ra console
     return res.status(500).json({
       status: "ERR",
       message: "Lỗi máy chủ: " + error.message,
     });
   }
 };
-
-
 
 
 const createUser = async (req, res) => {

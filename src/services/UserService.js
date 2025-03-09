@@ -286,7 +286,7 @@ const requestSellerUpgrade = ({ userId, reason, verificationDocs, businessPlan }
 const getPendingSellerRequests = () => {
   return new Promise(async (resolve, reject) => {
     try {
-      const pendingSellers = await User.find({ roles: 2, requestUpgrade: true }).select("name email phone");
+      const pendingSellers = await User.find({ roles: 2, requestUpgrade: true }).select("name email phone upgradeReason verificationDocs businessPlan");
 
       resolve({
         status: "OK",
