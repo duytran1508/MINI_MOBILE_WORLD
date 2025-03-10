@@ -30,8 +30,6 @@ const createAddress = async (req, res) => {
     return res.status(500).json({ message: "Internal Server Error", error });
   }
 };
-
-
 const getAddresses = async (req, res) => {
   const { userId } = req.params;
   console.log(userId);
@@ -55,7 +53,6 @@ const deleteAddress = async (req, res) => {
       .json({ message: error.message || "Internal Server Error" });
   }
 };
-
 module.exports = {
   createAddress,
   getAddresses,

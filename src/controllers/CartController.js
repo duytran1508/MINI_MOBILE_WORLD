@@ -31,7 +31,6 @@ const addOrUpdateProductInCart = async (req, res) => {
     });
   }
 };
-
 const UpdateProductInCart = async (req, res) => {
   try {
     const { userId, productId } = req.body;
@@ -58,7 +57,6 @@ const UpdateProductInCart = async (req, res) => {
     });
   }
 };
-
 const getCartByUserId = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -78,7 +76,6 @@ const getCartByUserId = async (req, res) => {
     });
   }
 };
-
 const removeProductFromCart = async (req, res) => {
   const { userId, productId } = req.params;
   try {

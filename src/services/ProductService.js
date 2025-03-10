@@ -14,11 +14,9 @@ const convertToBase64 = (filePath) => {
     });
   });
 };
-
 const createProduct = async (newProduct) => {
   try {
       const { name, quantityInStock, prices, discount = 0, imageUrls, categoryId, shopId, description } = newProduct;
-
       // Kiểm tra trường bắt buộc
       if (!name || !prices || !categoryId || !shopId) {
           return {
@@ -56,9 +54,6 @@ const createProduct = async (newProduct) => {
       };
   }
 };
-
-
-
 const updateProduct = (id, data) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -135,7 +130,6 @@ const deleteProduct = (id) => {
     }
   });
 };
-
 const deleteManyProduct = (ids) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -149,7 +143,6 @@ const deleteManyProduct = (ids) => {
     }
   });
 };
-
 const getAllProduct = async () => {
   return new Promise(async (resolve, reject) => {
       try {
@@ -172,9 +165,6 @@ const getAllProduct = async () => {
       }
   });
 };
-
-
-
 const getDetailsProduct = (id) => {
   return new Promise(async (resolve, reject) => {
       try {
@@ -203,8 +193,6 @@ const getDetailsProduct = (id) => {
       }
   });
 };
-
-
 const getAllProductsByParentCategory = (parentCategoryId) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -256,7 +244,6 @@ const getAllProductsByParentCategory = (parentCategoryId) => {
     }
   });
 };
-
 const getAllProductsBySubCategory = (subcategoryId) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -302,7 +289,6 @@ const getAllProductsBySubCategory = (subcategoryId) => {
     }
   });
 };
-
 const getAllType = () => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -317,7 +303,6 @@ const getAllType = () => {
     }
   });
 };
-
 const getAllProductsByShop = (shopId) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -332,7 +317,6 @@ const getAllProductsByShop = (shopId) => {
     }
   });
 };
-
 module.exports = {
   createProduct,
   updateProduct,
