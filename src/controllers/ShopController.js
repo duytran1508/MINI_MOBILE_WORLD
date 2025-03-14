@@ -40,30 +40,10 @@ const getShopById = async (req, res) => {
         res.status(error.status || 500).json({ message: error.message || "Lỗi server" });
     }
 };
-const getunShops = async (req, res) => {
-    try {
-        const response = await ShopService.getunShops();
-        return res.status(response.status === "OK" ? 200 : 500).json(response);
-    } catch (error) {
-        return res.status(500).json({ status: "ERR", message: "Lỗi máy chủ: " + error.message });
-    }
-};
-const approveShop = async (req, res) => {
-    try {
-        const { shopId } = req.params;
-        const response = await ShopService.approveShop(shopId);
-
-        return res.status(response.status === "OK" ? 200 : 400).json(response);
-    } catch (error) {
-        return res.status(500).json({ status: "ERR", message: "Lỗi máy chủ: " + error.message });
-    }
-};
 
 module.exports = {
     createShop,
     deleteShop,
     getAllShops,
     getShopById,
-    getunShops,
-    approveShop
 };

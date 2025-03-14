@@ -87,7 +87,6 @@ const removeProductFromCart = async (req, res) => {
     });
   }
 };
-
 const deleteCart = async (req, res) => {
   const { userId } = req.params;
   try {

@@ -100,49 +100,9 @@ const getShopById = async (shopId) => {
     }
 };
 
-// Lấy danh sách cửa hàng chưa duyệt
-const getunShops = async () => {
-    try {
-        const shops = await Shop.find({ isApproved: false }).populate("ownerId", "name");
-        return {
-            status: "success",
-            message: "Lấy danh sách cửa hàng chưa duyệt thành công",
-            data: shops
-        };
-    } catch (error) {
-        return {
-            status: "ERR",
-            message: "Lỗi khi lấy danh sách cửa hàng chưa duyệt: " + error.message
-        };
-    }
-};
-
-// Duyệt cửa hàng (chuyển trạng thái `isApproved` thành `true`)
-const approveShop = async (shopId) => {
-    try {
-        const updatedShop = await Shop.findByIdAndUpdate(shopId, { isApproved: true }, { new: true });
-        if (!updatedShop) {
-            return { status: "ERR", message: "Không tìm thấy cửa hàng để duyệt" };
-        }
-
-        return {
-            status: "success",
-            message: "Cửa hàng đã được duyệt thành công",
-            data: updatedShop
-        };
-    } catch (error) {
-        return {
-            status: "ERR",
-            message: "Lỗi khi duyệt cửa hàng: " + error.message
-        };
-    }
-};
-
 module.exports = {
     createShop,
     deleteShop,
     getAllShops,
     getShopById,
-    getunShops,
-    approveShop
 };

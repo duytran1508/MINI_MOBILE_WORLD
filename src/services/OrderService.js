@@ -15,6 +15,7 @@ const createOrder = async (
 ) => {
   try {
     const cart = await Cart.findById(cartId).populate("products.productId");
+    console.log("Cart Data:", cart);
     if (!cart) {
       throw { status: 404, message: "Không tìm thấy giỏ hàng" };
     }
@@ -157,42 +158,49 @@ const getOrderById = (orderId) => {
 };
 const shipOrder = async (orderId) => {
   try {
-    const order = await Order.findById(orderId).populate("items.product");
-    if (!order) throw { status: 404, message: "Order not found" };
+    // Sửa "items.product" thành "products.productId"
+    const order = await Order.findById(orderId).populate("products.productId");
 
-    if (order.status !== "Pending") throw { status: 400, message: "Order is not in Pending status" };
+    if (!order) throw { status: 404, message: "Không tìm thấy đơn hàng" };
+    if (order.status !== "Pending") throw { status: 400, message: "Đơn hàng không ở trạng thái Pending" };
 
-    for (const item of order.items) {
-      const product = item.product;
-      if (!product) throw { status: 404, message: `Product not found for item ${item._id}` };
+    for (const item of order.products) {
+      const product = item.productId; // Đúng field đã khai báo trong schema
 
-      if (product.quantityInStock < item.quantity) throw { status: 400, message: `Not enough stock for product ${product.name}` };
+      if (!product) throw { status: 404, message: `Không tìm thấy sản phẩm với ID ${item.productId}` };
 
+      if (product.quantityInStock < item.quantity)
+        throw { status: 400, message: `Sản phẩm ${product.name} không đủ số lượng tồn kho` };
+
+      // Giảm số lượng tồn kho
       product.quantityInStock -= item.quantity;
       await product.save();
     }
 
+    // Cập nhật trạng thái đơn hàng
     order.status = "Shipped";
     await order.save();
 
     return order;
   } catch (error) {
-    console.error("Error in shipOrder service:", error);
-    throw { status: error.status || 500, message: error.message || "Internal server error" };
+    console.error("Lỗi trong shipOrder service:", error);
+    throw { status: error.status || 500, message: error.message || "Lỗi hệ thống" };
   }
 };
 
 const cancelOrder = async (orderId) => {
   try {
-    const order = await Order.findById(orderId).populate("items.product");
-    if (!order) throw { status: 404, message: "Order not found" };
+    // Sửa populate đúng với schema
+    const order = await Order.findById(orderId).populate("products.productId");
+    if (!order) throw { status: 404, message: "Không tìm thấy đơn hàng" };
 
-    if (order.status === "Delivered" || order.status === "Cancelled") throw { status: 400, message: "Order already delivered or cancelled" };
+    if (["Delivered", "Cancelled"].includes(order.status))
+      throw { status: 400, message: "Đơn hàng đã được giao hoặc đã hủy" };
 
     // Hoàn lại số lượng vào kho nếu đơn hàng đã ở trạng thái "Shipped"
     if (order.status === "Shipped") {
-      for (const item of order.items) {
-        const product = item.product;
+      for (const item of order.products) {
+        const product = item.productId; // Sửa `item.product` -> `item.productId`
         if (product) {
           product.quantityInStock += item.quantity;
           await product.save();
@@ -200,15 +208,17 @@ const cancelOrder = async (orderId) => {
       }
     }
 
+    // Cập nhật trạng thái đơn hàng thành "Cancelled"
     order.status = "Cancelled";
     await order.save();
 
     return order;
   } catch (error) {
-    console.error("Error in cancelOrder service:", error);
-    throw { status: error.status || 500, message: error.message || "Internal server error" };
+    console.error("Lỗi trong cancelOrder service:", error);
+    throw { status: error.status || 500, message: error.message || "Lỗi hệ thống" };
   }
 };
+
 
 const deliverOrder = async (orderId) => {
   try {

@@ -18,8 +18,12 @@ const uploadProductImages = upload.array("images", 5);
 
 const requestUpgrade = async (req, res) => {
   try {
-    console.log("Full Request Body:", req.body);
-
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        status: "ERR",
+        message: "Không có file nào được tải lên!",
+      });
+    }
     const { userId, businessPlan, upgradeReason } = req.body || {}; // Tránh undefined
 
     if (!userId || !businessPlan || !upgradeReason || !req.files || req.files.length === 0) {

@@ -4,7 +4,7 @@ const mongoose = require("mongoose");
 
 
 const createCategory = async (newCategory) => {
-  const { name, icon, parentCategory } = newCategory;
+  const { name, parentCategory } = newCategory;
 
   try {
     // Kiểm tra nếu có parentCategory thì phải đảm bảo danh mục cha tồn tại
@@ -22,7 +22,6 @@ const createCategory = async (newCategory) => {
     // Tạo danh mục mới
     const createdCategory = await Category.create({
       name: name || "",
-      icon: icon || "",
       parentCategory: parent ? parent._id : null // Nếu có parent thì lưu ID, nếu không thì null
     });
 
@@ -136,7 +135,7 @@ const updateCategory = (id, categoryData) => {
         return resolve({ status: "ERR", message: "Category not found" });
       }
 
-      const { name, icon, parentCategory } = categoryData;
+      const { name, parentCategory } = categoryData;
 
       // Kiểm tra nếu không có parentCategory -> Báo lỗi
       if (!parentCategory) {
@@ -152,7 +151,7 @@ const updateCategory = (id, categoryData) => {
       // Cập nhật danh mục
       const updatedCategory = await Category.findByIdAndUpdate(
         id,
-        { name, icon, parentCategory },
+        { name, parentCategory },
         { new: true }
       );
 

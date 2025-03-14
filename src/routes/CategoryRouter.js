@@ -3,7 +3,7 @@ const router = express.Router();
 const categoryController = require("../controllers/categoryController");
 
 // Tạo danh mục mới
-router.post("/create", categoryController.uploadCategoryImages, categoryController.createCategory);
+router.post("/create", categoryController.createCategory);
 
 // Cập nhật danh mục
 router.put("/update/:id", categoryController.updateCategory);

@@ -46,7 +46,7 @@ const addOrUpdateProductInCart = async (userId, productId, quantity) => {
       cart.products[productIndex].quantity = newQuantity;
     } else {
       // Nếu sản phẩm chưa có trong giỏ, thêm vào giỏ với số lượng yêu cầu
-      cart.products.push({ productId, quantity });
+      cart.products.push({ productId, quantity, shopId: product.shopId });
     }
 
     // Tính toán lại tổng giá trị giỏ hàng

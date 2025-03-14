@@ -77,7 +77,7 @@ const loginUser = (userLogin) => {
         return;
       }
 
-      const { _id: id, name, phone, roles } = checkUser;
+      const { _id: id, name, phone, roles, shopId } = checkUser;
 
       const access_token = await genneralAccessToken({ id, roles });
       const refresh_token = await genneralRefreshToken({ id, roles });
@@ -85,7 +85,7 @@ const loginUser = (userLogin) => {
       resolve({
         status: "OK",
         message: "Success",
-        dataUser: { id, name, email, roles, phone },
+        dataUser: { id, name, email, roles, phone,shopId },
         access_token,
         refresh_token,
       });

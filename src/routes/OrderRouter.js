@@ -7,7 +7,7 @@ router.post("/create", orderController.createOrder);
 
 router.get("/get/:orderId", orderController.getOrderById);
 
-router.get("/getAll/:userId", orderController.getAllOrdersByUser);
+router.get("/getAllByOrder/:userId", orderController.getAllOrdersByUser);
 
 router.get("/getAll", orderController.getAllOrders);
 
