@@ -158,14 +158,14 @@ const getOrderById = (orderId) => {
 };
 const shipOrder = async (orderId) => {
   try {
-    // Sửa "items.product" thành "products.productId"
+    
     const order = await Order.findById(orderId).populate("products.productId");
 
     if (!order) throw { status: 404, message: "Không tìm thấy đơn hàng" };
     if (order.status !== "Pending") throw { status: 400, message: "Đơn hàng không ở trạng thái Pending" };
 
     for (const item of order.products) {
-      const product = item.productId; // Đúng field đã khai báo trong schema
+      const product = item.productId; 
 
       if (!product) throw { status: 404, message: `Không tìm thấy sản phẩm với ID ${item.productId}` };
 
@@ -174,6 +174,9 @@ const shipOrder = async (orderId) => {
 
       // Giảm số lượng tồn kho
       product.quantityInStock -= item.quantity;
+
+      // Tăng số lượng đã bán
+      product.soldQuantity += item.quantity;
       await product.save();
     }
 
@@ -190,7 +193,7 @@ const shipOrder = async (orderId) => {
 
 const cancelOrder = async (orderId) => {
   try {
-    // Sửa populate đúng với schema
+    
     const order = await Order.findById(orderId).populate("products.productId");
     if (!order) throw { status: 404, message: "Không tìm thấy đơn hàng" };
 
@@ -200,9 +203,10 @@ const cancelOrder = async (orderId) => {
     // Hoàn lại số lượng vào kho nếu đơn hàng đã ở trạng thái "Shipped"
     if (order.status === "Shipped") {
       for (const item of order.products) {
-        const product = item.productId; // Sửa `item.product` -> `item.productId`
+        const product = item.productId; 
         if (product) {
           product.quantityInStock += item.quantity;
+          product.soldQuantity = Math.max(0, product.soldQuantity - item.quantity);
           await product.save();
         }
       }

@@ -82,15 +82,22 @@ const getAllShops = async () => {
 // Lấy thông tin chi tiết cửa hàng theo ID
 const getShopById = async (shopId) => {
     try {
+        // Tìm shop theo ID và lấy thông tin chủ sở hữu
         const shop = await Shop.findById(shopId).populate("ownerId", "name");
         if (!shop) {
             return { status: "ERR", message: "Không tìm thấy cửa hàng" };
         }
 
+        // Đếm số lượng sản phẩm của shop
+        const productCount = await Product.countDocuments({ shopId });
+
         return {
             status: "success",
             message: "Lấy thông tin cửa hàng thành công",
-            data: shop
+            data: {
+                ...shop.toObject(), // Chuyển document Mongoose thành object
+                productCount, // Thêm số lượng sản phẩm
+            }
         };
     } catch (error) {
         return {
@@ -99,6 +106,7 @@ const getShopById = async (shopId) => {
         };
     }
 };
+
 
 module.exports = {
     createShop,
