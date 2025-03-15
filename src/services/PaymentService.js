@@ -68,6 +68,11 @@ function sortObject(obj) {
   }, {});
 }
 
+const getOrderById = async (orderId) => {
+  return await Order.findById(orderId);
+};
+
 module.exports = {
-  createVNPayPaymentUrl
+  createVNPayPaymentUrl,
+  getOrderById
 };
