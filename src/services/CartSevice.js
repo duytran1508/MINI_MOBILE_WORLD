@@ -1,5 +1,6 @@
 const Cart = require("../models/CartModel");
 const Product = require("../models/ProductModel");
+const Shop = require("../models/ShopModel");
 
 const addOrUpdateProductInCart = async (userId, productId, quantity) => {
   try {
@@ -140,10 +141,16 @@ const UpdateProductInCart = async (userId, productId, quantity) => {
 
 const getCartByUserId = async (userId) => {
   try {
-    const cart = await Cart.findOne({ userId }).populate(
-      "products.productId",
-      "name prices imageUrl company quantityInStock promotionPrice discount"
-    );
+    const cart = await Cart.findOne({ userId })
+    .populate({
+      path: "products.productId",
+      select: "name prices imageUrls company quantityInStock promotionPrice discount shopId",
+      populate: {
+        path: "shopId",
+        model: "Shop", // Đảm bảo model đúng
+        select: "name", // Chỉ lấy tên shop
+      },
+    });
     if (!cart) {
       console.log("Không tìm thấy giỏ hàng");
     }
