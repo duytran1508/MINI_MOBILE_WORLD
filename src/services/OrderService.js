@@ -135,6 +135,15 @@ const getAllOrders = async () => {
   }
 };
 
+const getAllOrdersByShop = async (shopId) => {
+  try {
+    const orders = await Order.find({ "products.shopId": shopId }).populate("products.productId");
+    return orders;
+  } catch (error) {
+    throw new Error("Lỗi khi lấy đơn hàng của shop: " + error.message);
+  }
+};
+
 const getOrderById = (orderId) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -223,7 +232,6 @@ const cancelOrder = async (orderId) => {
   }
 };
 
-
 const deliverOrder = async (orderId) => {
   try {
     const order = await Order.findById(orderId);
@@ -241,7 +249,6 @@ const deliverOrder = async (orderId) => {
     throw { status: error.status || 500, message: error.message || "Internal server error" };
   }
 };
-
 
 const updatePaymentStatus = async (orderId, isSuccess) => {
   console.log(isSuccess);
@@ -456,6 +463,7 @@ module.exports = {
   getAllOrdersByUser,
   getAllOrders,
   getOrderById,
+  getAllOrdersByShop,
   cancelOrder,
   shipOrder,
   deliverOrder,

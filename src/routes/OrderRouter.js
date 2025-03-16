@@ -9,6 +9,9 @@ router.get("/get/:orderId", orderController.getOrderById);
 
 router.get("/getAllByOrder/:userId", orderController.getAllOrdersByUser);
 
+router.get("/getAllByShop/:shopId", orderController.getAllOrdersByShop);
+
+
 router.get("/getAll", orderController.getAllOrders);
 
 router.put("/cancel", orderController.cancelOrder);

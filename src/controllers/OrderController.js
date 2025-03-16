@@ -109,6 +109,22 @@ const getOrderById = async (req, res) => {
     });
   }
 };
+const getAllOrdersByShop = async (req, res) => {
+  try {
+    const { shopId } = req.params;
+
+    const orders = await OrderService.getAllOrdersByShop(shopId);
+
+    res.status(200).json({ status: "OK", data: orders });
+  } catch (error) {
+    console.error("Lỗi trong getAllOrdersByShop controller:", error);
+    res.status(error.status || 500).json({
+      status: "ERR",
+      message: error.message || "Internal server error"
+    });
+  }
+};
+
 const cancelOrder = async (req, res) => {
   const { orderId } = req.body;
 
@@ -207,6 +223,7 @@ module.exports = {
   getAllOrders,
   createOrder,
   getOrderById,
+  getAllOrdersByShop,
   cancelOrder,
   shipOrder,
   deliverOrder,
