@@ -17,6 +17,10 @@ const userSchema = new mongoose.Schema(
     upgradeReason: { type: String }, // Lý do nâng cấp
     verificationDocs: { type: [String] }, // Lưu danh sách URL ảnh từ Firebase
     businessPlan: { type: String }, // Kế hoạch bán hàng
+
+    following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }], // Danh sách user đang follow
+    followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }], // Danh sách user theo dõi mình
+
   },
   {
     timestamps: true,

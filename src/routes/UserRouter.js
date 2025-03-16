@@ -18,5 +18,10 @@ router.put("/change-password/:id", userController.changePassword);
 router.get("/get-pending-sellers", userController.getPendingSellers);
 router.put("/upgrade-role", userController.upgradeToSeller);
 router.post("/request-upgrade", userController.uploadProductImages, userController.requestUpgrade);
+router.post("/follow", userController.followUser);
+router.post("/unfollow", userController.unfollowUser);
+router.get("/:userId/followers-following", userController.getFollowersAndFollowing);
+router.get("/:userId/follower-count", userController.getFollowerCount);
+
 
 module.exports = router;

@@ -68,8 +68,6 @@ const requestUpgrade = async (req, res) => {
   }
 };
 
-
-
 const createUser = async (req, res) => {
   try {
     const { name, email, password, confirmPassword, phone } = req.body;
@@ -378,7 +376,41 @@ const upgradeToSeller = async (req, res) => {
     });
   }
 };
+const followUser = async (req, res) => {
+  try {
+    const result = await UserService.followUser(req.user.id, req.body.targetUserId);
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
 
+const unfollowUser = async (req, res) => {
+  try {
+    const result = await UserService.unfollowUser(req.user.id, req.body.targetUserId);
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+const getFollowersAndFollowing = async (req, res) => {
+  try {
+    const result = await UserService.getFollowersAndFollowing(req.params.userId);
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+const getFollowerCount = async (req, res) => {
+  try {
+    const result = await UserService.getFollowerCount(req.params.userId);
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
 
 
 module.exports = {
@@ -396,5 +428,10 @@ module.exports = {
   requestUpgrade,
   getPendingSellers,
   upgradeToSeller,
-  uploadProductImages
+  uploadProductImages,
+  followUser,
+  unfollowUser,
+  getFollowersAndFollowing,
+  getFollowerCount,
+
 };

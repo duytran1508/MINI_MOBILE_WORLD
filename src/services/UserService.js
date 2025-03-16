@@ -282,7 +282,6 @@ const requestSellerUpgrade = ({ userId, verificationDocs, businessPlan, upgradeR
   });
 };
 
-
 const getPendingSellerRequests = () => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -327,6 +326,62 @@ const upgradeUserRole = (userId) => {
   });
 };
 
+// Người dùng theo dõi người khác
+const followUser = async (userId, targetUserId) => {
+  if (userId === targetUserId) throw new Error("Bạn không thể tự theo dõi chính mình");
+
+  const user = await User.findById(userId);
+  const targetUser = await User.findById(targetUserId);
+
+  if (!user || !targetUser) throw new Error("Người dùng không tồn tại");
+
+  if (targetUser.followers && targetUser.followers.includes(userId)) {
+    throw new Error("Bạn đã theo dõi người này rồi");
+  }
+
+  // Cập nhật danh sách follower và following
+  await User.findByIdAndUpdate(userId, { $push: { following: targetUserId } });
+  await User.findByIdAndUpdate(targetUserId, { $push: { followers: userId } });
+
+  return { message: "Theo dõi thành công" };
+};
+
+// Người dùng hủy theo dõi người khác
+const unfollowUser = async (userId, targetUserId) => {
+  if (userId === targetUserId) throw new Error("Bạn không thể tự bỏ theo dõi chính mình");
+
+  const user = await User.findById(userId);
+  const targetUser = await User.findById(targetUserId);
+
+  if (!user || !targetUser) throw new Error("Người dùng không tồn tại");
+
+  if (!targetUser.followers || !targetUser.followers.includes(userId)) {
+    throw new Error("Bạn chưa theo dõi người này");
+  }
+
+  // Cập nhật danh sách follower và following
+  await User.findByIdAndUpdate(userId, { $pull: { following: targetUserId } });
+  await User.findByIdAndUpdate(targetUserId, { $pull: { followers: userId } });
+
+  return { message: "Bỏ theo dõi thành công" };
+};
+
+// Lấy danh sách người theo dõi và đang theo dõi
+const getFollowersAndFollowing = async (userId) => {
+  const user = await User.findById(userId).select("followers following");
+  if (!user) throw new Error("Người dùng không tồn tại");
+
+  return { followers: user.followers, following: user.following };
+};
+
+// Lấy số lượng người theo dõi
+const getFollowerCount = async (userId) => {
+  const user = await User.findById(userId).select("followers");
+  if (!user) throw new Error("Người dùng không tồn tại");
+
+  return { followerCount: user.followers.length };
+};
+
 module.exports = {
   createUser,
   loginUser,
@@ -339,4 +394,8 @@ module.exports = {
   requestSellerUpgrade,
   getPendingSellerRequests,
   upgradeUserRole,
+  followUser,
+  unfollowUser,
+  getFollowersAndFollowing,
+  getFollowerCount,
 };
