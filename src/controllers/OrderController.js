@@ -136,8 +136,8 @@ const shipOrder = async (req, res) => {
 
 const cancelOrder = async (req, res) => {
   try {
-    const { orderId, shopId } = req.body;
-    const canceledOrder = await OrderService.cancelOrder(orderId, shopId);
+    const { orderId } = req.body;
+    const canceledOrder = await OrderService.cancelOrder(orderId);
     res.status(200).json({ status: "OK", message: "Đã hủy đơn hàng", data: canceledOrder });
   } catch (error) {
     res.status(error.status || 500).json({
