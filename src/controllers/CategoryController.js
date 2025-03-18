@@ -24,7 +24,6 @@ const createCategory = async (req, res) => {
   try {
     const data = { ...req.body };
 
-    // Xử lý ảnh icon nếu có
     if (req.files && req.files["icon"] && req.files["icon"].length > 0) {
       const imageFile = req.files["icon"][0];
       const folderName = "TTTN/category";

@@ -1,6 +1,6 @@
 const AddressService = require("../services/AddressService");
 
-const mongoose = require("mongoose"); // Thêm dòng này nếu chưa có
+const mongoose = require("mongoose");
 
 const createAddress = async (req, res) => {
   const { name, phone, email, address, userId } = req.body;

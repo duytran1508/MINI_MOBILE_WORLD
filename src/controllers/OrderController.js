@@ -112,112 +112,120 @@ const getOrderById = async (req, res) => {
 const getAllOrdersByShop = async (req, res) => {
   try {
     const { shopId } = req.params;
-
     const orders = await OrderService.getAllOrdersByShop(shopId);
-
     res.status(200).json({ status: "OK", data: orders });
   } catch (error) {
-    console.error("Lỗi trong getAllOrdersByShop controller:", error);
     res.status(error.status || 500).json({
       status: "ERR",
-      message: error.message || "Internal server error"
+      message: error.message || "Lỗi hệ thống"
+    });
+  }
+};
+const shipOrder = async (req, res) => {
+  try {
+    const { orderId, shopId } = req.body;
+    const shippedOrder = await OrderService.shipOrder(orderId, shopId);
+    res.status(200).json({ status: "OK", message: "Đã giao hàng", data: shippedOrder });
+  } catch (error) {
+    res.status(error.status || 500).json({
+      status: "ERR",
+      message: error.message || "Lỗi hệ thống"
     });
   }
 };
 
 const cancelOrder = async (req, res) => {
-  const { orderId } = req.body;
-
   try {
-    const canceledOrder = await OrderService.cancelOrder(orderId);
-    res.status(200).json({
-      status: "OK",
-      message: "Order canceled successfully",
-      data: canceledOrder
-    });
+    const { orderId, shopId } = req.body;
+    const canceledOrder = await OrderService.cancelOrder(orderId, shopId);
+    res.status(200).json({ status: "OK", message: "Đã hủy đơn hàng", data: canceledOrder });
   } catch (error) {
-    console.error("Error in cancelOrderController:", error);
     res.status(error.status || 500).json({
       status: "ERR",
-      message: error.message || "Internal server error"
+      message: error.message || "Lỗi hệ thống"
     });
   }
 };
-const shipOrder = async (req, res) => {
-  const { orderId } = req.body;
 
-  try {
-    const shippedOrder = await OrderService.shipOrder(orderId);
-    res.status(200).json({
-      status: "OK",
-      message: "Order shipped successfully",
-      data: shippedOrder
-    });
-  } catch (error) {
-    console.error("Error in shipOrderController:", error);
-    res.status(error.status || 500).json({
-      status: "ERR",
-      message: error.message || "Internal server error"
-    });
-  }
-};
 const deliverOrder = async (req, res) => {
-  const { orderId } = req.body;
-
   try {
+    const { orderId } = req.body;
     const deliveredOrder = await OrderService.deliverOrder(orderId);
-    res.status(200).json({
-      status: "OK",
-      message: "Order delivered successfully",
-      data: deliveredOrder
-    });
+    res.status(200).json({ status: "OK", message: "Đã giao thành công", data: deliveredOrder });
   } catch (error) {
-    console.error("Error in deliverOrderController:", error);
     res.status(error.status || 500).json({
       status: "ERR",
-      message: error.message || "Internal server error"
+      message: error.message || "Lỗi hệ thống"
     });
   }
 };
-const getOrdersByStatusAndDateController = async (req, res) => {
+const getOrdersByTimePeriodAllShops = async (req, res) => {
   try {
-    const { status, date, timePeriod } = req.body; // Lấy thông tin từ body (POST)
-    console.log({ status, date, timePeriod });
-
-    // Kiểm tra timePeriod hợp lệ
-    if (!["day", "week", "month"].includes(timePeriod)) {
-      return res.status(400).json({
-        message:
-          "Thời gian không hợp lệ. Vui lòng chọn 'day', 'week', hoặc 'month'."
-      });
-    }
-
-    // Gọi service để lấy đơn hàng
-    const orders = await OrderService.getOrdersByTimePeriod(
-      status,
-      timePeriod,
-      date
-    );
-
-    // Trả về kết quả
-    return res.status(200).json(orders);
+    const { status, timePeriod, date } = req.query;
+    const result = await OrderService.getOrdersByTimePeriod(status, timePeriod, date);
+    return res.status(200).json({ status: "OK", data: result });
   } catch (error) {
-    console.error("Lỗi trong getOrdersByStatusAndDateController:", error);
-    return res.status(500).json({ message: "Lỗi server" });
-  }
-};
-const getRevenue = async (req, res) => {
-  try {
-    const revenueData = await OrderService.getTotalRevenue();
-    return res.status(200).json(revenueData);
-  } catch (error) {
+    console.error("Lỗi trong getOrdersByTimePeriodAllShops:", error);
     return res.status(500).json({
       status: "ERR",
-      message: "Không thể lấy tổng doanh thu",
+      message: "Không thể lấy đơn hàng của tất cả các Shop",
       error: error.message
     });
   }
 };
+
+const getOrdersByTimePeriodByShop = async (req, res) => {
+  try {
+    const { shopId, status, timePeriod, date } = req.query;
+    const result = await OrderService.getOrdersByTimePeriod(status, timePeriod, date, shopId);
+    return res.status(200).json({ status: "OK", data: result });
+  } catch (error) {
+    console.error("Lỗi trong getOrdersByTimePeriodByShop:", error);
+    return res.status(500).json({
+      status: "ERR",
+      message: "Không thể lấy đơn hàng của Shop",
+      error: error.message
+    });
+  }
+};
+// API lấy tổng doanh thu của tất cả các Shop
+const getTotalRevenueAllShops = async (req, res) => {
+  try {
+    const revenueData = await OrderService.getTotalRevenueAllShops();
+    return res.status(200).json(revenueData);
+  } catch (error) {
+    return res.status(500).json({
+      status: "ERR",
+      message: "Không thể lấy tổng doanh thu của tất cả các Shop",
+      error: error.message
+    });
+  }
+};
+
+// API lấy tổng doanh thu của từng Shop theo shopId
+const getTotalRevenueByShop = async (req, res) => {
+  try {
+    const { shopId } = req.params;
+
+    if (!shopId) {
+      return res.status(400).json({
+        status: "ERR",
+        message: "Vui lòng cung cấp shopId"
+      });
+    }
+
+    const revenueData = await OrderService.getTotalRevenueByShop(shopId);
+    return res.status(200).json(revenueData);
+  } catch (error) {
+    return res.status(500).json({
+      status: "ERR",
+      message: "Không thể lấy tổng doanh thu của Shop",
+      error: error.message
+    });
+  }
+};
+
+
 module.exports = {
   getAllOrdersByUser,
   getAllOrders,
@@ -227,6 +235,8 @@ module.exports = {
   cancelOrder,
   shipOrder,
   deliverOrder,
-  getRevenue,
-  getOrdersByStatusAndDateController
+  getOrdersByTimePeriodAllShops,
+  getOrdersByTimePeriodByShop,
+  getTotalRevenueAllShops,
+  getTotalRevenueByShop
 };

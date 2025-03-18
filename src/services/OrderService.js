@@ -2,6 +2,7 @@ const Order = require("../models/OrderModel");
 const Cart = require("../models/CartModel");
 const Product = require("../models/ProductModel");
 const Voucher = require("../models/VoucherModel");
+const mongoose = require("mongoose");
 
 const createOrder = async (
   userId,
@@ -14,39 +15,44 @@ const createOrder = async (
   voucherCode
 ) => {
   try {
-    const cart = await Cart.findById(cartId).populate("products.productId");
-    console.log("Cart Data:", cart);
+    // Lấy giỏ hàng và populate sản phẩm
+    const cart = await Cart.findById(cartId).populate({
+      path: "products.productId",
+      model: "Product",
+      select: "price promotionPrice shopId"
+    });
+
     if (!cart) {
-      throw { status: 404, message: "Không tìm thấy giỏ hàng" };
+      return { status: "FAIL", message: "Không tìm thấy giỏ hàng" };
     }
 
-    const selectedProducts = cart.products.filter((item) =>
+    // Log kiểm tra giỏ hàng
+    console.log("Giỏ hàng hiện tại:", JSON.stringify(cart.products, null, 2));
+
+    // Lọc sản phẩm dựa trên productIds
+    const selectedProducts = cart.products.filter(item =>
       productIds.includes(String(item.productId._id))
     );
 
-    const validProducts = await Product.find({ _id: { $in: productIds } });
-    if (!validProducts || validProducts.length === 0) {
-      throw { status: 400, message: "Không có sản phẩm hợp lệ để thanh toán" };
+    // Kiểm tra sản phẩm đã chọn
+    console.log("Sản phẩm đã chọn:", JSON.stringify(selectedProducts, null, 2));
+
+    if (selectedProducts.length === 0) {
+      return { status: "FAIL", message: "Không có sản phẩm hợp lệ trong giỏ hàng" };
     }
 
-    const products = await Promise.all(
-      selectedProducts.map(async (item) => {
-        const product = await Product.findById(item.productId);
-        if (!product) {
-          throw {
-            status: 404,
-            message: `Không tìm thấy sản phẩm với ID ${item.productId}`
-          };
-        }
+    // Lấy thông tin sản phẩm và kiểm tra
+    const products = selectedProducts.map(item => ({
+      productId: item.productId._id,
+      shopId: item.productId.shopId,
+      quantity: item.quantity,
+      price: item.productId.promotionPrice || item.productId.price,
+    }));
 
-        return {
-          productId: product._id,
-          quantity: item.quantity,
-          price: product.promotionPrice
-        };
-      })
-    );
+    // Log kiểm tra sản phẩm trước khi lưu
+    console.log("Danh sách sản phẩm lưu vào đơn hàng:", JSON.stringify(products, null, 2));
 
+    // Tính tổng tiền
     const totalPrice = products.reduce(
       (total, product) => total + product.price * product.quantity,
       0
@@ -55,29 +61,19 @@ const createOrder = async (
     const VAT = totalPrice * 0.1;
     const shippingFee = totalPrice >= 50000000 ? 0 : 800000;
 
+    // Áp dụng mã giảm giá
     let discount = 0;
     if (voucherCode) {
       const voucher = await Voucher.findOne({ code: voucherCode });
-      if (!voucher) {
-        throw { status: 404, message: "Mã giảm giá không hợp lệ" };
-      }
-
-      if (
-        voucher.discount &&
-        voucher.discount >= 1 &&
-        voucher.discount <= 100
-      ) {
+      if (voucher && voucher.discount > 0 && voucher.discount <= 100) {
         discount = (totalPrice + shippingFee + VAT) * (voucher.discount / 100);
-      } else {
-        throw { status: 400, message: "Voucher giảm giá không hợp lệ" };
       }
     }
 
     const discountedPrice = totalPrice + shippingFee + VAT - discount;
+    const orderTotal = parseFloat(Math.max(discountedPrice, 0).toFixed(2));
 
-    const orderTotalRaw = Math.max(discountedPrice, 0);
-    const orderTotal = parseFloat(orderTotalRaw.toFixed(2));
-
+    // Tạo đơn hàng mới
     const newOrder = new Order({
       name,
       phone,
@@ -91,14 +87,17 @@ const createOrder = async (
       VAT,
       shippingFee,
       orderTotal,
-      status: "Pending"
+      status: "Pending",
     });
 
     await newOrder.save();
+    console.log("Đơn hàng đã lưu:", JSON.stringify(newOrder, null, 2));
 
+    // Cập nhật giỏ hàng: Xóa các sản phẩm đã thanh toán
     cart.products = cart.products.filter(
-      (item) => !productIds.includes(String(item.productId._id))
+      item => !productIds.includes(String(item.productId._id))
     );
+
     await cart.save();
 
     return {
@@ -106,12 +105,12 @@ const createOrder = async (
       data: {
         ...newOrder.toObject(),
         discount,
-        totalPrice
-      }
+        totalPrice,
+      },
     };
   } catch (error) {
     console.error("Lỗi trong createOrder service:", error);
-    throw error;
+    return { status: "FAIL", message: "Lỗi hệ thống, vui lòng thử lại sau." };
   }
 };
 
@@ -132,15 +131,6 @@ const getAllOrders = async () => {
   } catch (error) {
     console.error("Lỗi trong getAllOrders service:", error);
     throw error;
-  }
-};
-
-const getAllOrdersByShop = async (shopId) => {
-  try {
-    const orders = await Order.find({ "products.shopId": shopId }).populate("products.productId");
-    return orders;
-  } catch (error) {
-    throw new Error("Lỗi khi lấy đơn hàng của shop: " + error.message);
   }
 };
 
@@ -165,88 +155,120 @@ const getOrderById = (orderId) => {
     }
   });
 };
-const shipOrder = async (orderId) => {
+const getAllOrdersByShop = async (shopId) => {
   try {
-    
-    const order = await Order.findById(orderId).populate("products.productId");
+    const orders = await Order.find({ "products.shopId": shopId }).populate("products.productId");
 
-    if (!order) throw { status: 404, message: "Không tìm thấy đơn hàng" };
-    if (order.status !== "Pending") throw { status: 400, message: "Đơn hàng không ở trạng thái Pending" };
+    // Lọc chính xác sản phẩm theo shopId trong mỗi đơn hàng
+    const filteredOrders = orders
+      .map(order => {
+        const shopProducts = order.products.filter(item => item.shopId.toString() === shopId);
 
-    for (const item of order.products) {
-      const product = item.productId; 
+        return {
+          ...order.toObject(), 
+          products: shopProducts
+        };
+      })
+      .filter(order => order.products.length > 0); // Chỉ giữ đơn hàng có sản phẩm thuộc shop
 
-      if (!product) throw { status: 404, message: `Không tìm thấy sản phẩm với ID ${item.productId}` };
-
-      if (product.quantityInStock < item.quantity)
-        throw { status: 400, message: `Sản phẩm ${product.name} không đủ số lượng tồn kho` };
-
-      // Giảm số lượng tồn kho
-      product.quantityInStock -= item.quantity;
-
-      // Tăng số lượng đã bán
-      product.soldQuantity += item.quantity;
-      await product.save();
-    }
-
-    // Cập nhật trạng thái đơn hàng
-    order.status = "Shipped";
-    await order.save();
-
-    return order;
+    return filteredOrders;
   } catch (error) {
-    console.error("Lỗi trong shipOrder service:", error);
-    throw { status: error.status || 500, message: error.message || "Lỗi hệ thống" };
+    throw new Error("Lỗi khi lấy đơn hàng của shop: " + error.message);
   }
 };
 
-const cancelOrder = async (orderId) => {
+const shipOrder = async (orderId, shopId) => {
   try {
-    
     const order = await Order.findById(orderId).populate("products.productId");
-    if (!order) throw { status: 404, message: "Không tìm thấy đơn hàng" };
 
-    if (["Delivered", "Cancelled"].includes(order.status))
-      throw { status: 400, message: "Đơn hàng đã được giao hoặc đã hủy" };
-
-    // Hoàn lại số lượng vào kho nếu đơn hàng đã ở trạng thái "Shipped"
-    if (order.status === "Shipped") {
-      for (const item of order.products) {
-        const product = item.productId; 
-        if (product) {
-          product.quantityInStock += item.quantity;
-          product.soldQuantity = Math.max(0, product.soldQuantity - item.quantity);
-          await product.save();
-        }
-      }
+    if (!order) {
+      return { status: "FAIL", message: "Không tìm thấy đơn hàng" };
     }
 
-    // Cập nhật trạng thái đơn hàng thành "Cancelled"
-    order.status = "Cancelled";
-    await order.save();
+    let isShipped = false;
 
+    // Duyệt qua các sản phẩm trong đơn hàng
+    order.products.forEach((item) => {
+      // Kiểm tra shopId và trạng thái Pending
+      if (item.shopId.toString() === shopId && !item.approved) {
+        item.approved = true;
+        isShipped = true;
+
+        // Cập nhật số lượng tồn kho
+        if (item.productId.quantityInStock >= item.quantity) {
+          item.productId.quantityInStock -= item.quantity;
+          item.productId.soldQuantity += item.quantity;
+          item.productId.save();
+        } else {
+          throw { status: 400, message: `Sản phẩm ${item.productId.name} không đủ số lượng tồn kho` };
+        }
+      }
+    });
+
+    if (!isShipped) {
+      return { status: "FAIL", message: "Không có sản phẩm nào cần giao" };
+    }
+
+    // Kiểm tra nếu tất cả các sản phẩm đã được duyệt
+    if (order.products.every((item) => item.approved)) {
+      order.status = "Shipped";
+    }
+
+    await order.save();
+    return { status: "OK", message: "Đã giao hàng", data: order };
+  } catch (error) {
+    console.error("Lỗi trong shipOrder service:", error);
+    return { status: "FAIL", message: error.message || "Lỗi hệ thống" };
+  }
+};
+
+
+const cancelOrder = async (orderId, shopId) => {
+  try {
+    const order = await Order.findById(orderId).populate('products.productId');
+    if (!order) throw { status: 404, message: 'Không tìm thấy đơn hàng' };
+
+    const canceledProducts = order.products.map(item => {
+      if (item.shopId.toString() === shopId && item.status !== 'Delivered') {
+        item.status = 'Cancelled';
+        return item;
+      }
+      return item;
+    });
+
+    if (!canceledProducts.some(item => item.status === 'Cancelled'))
+      throw { status: 400, message: 'Không có sản phẩm nào cần hủy' };
+
+    if (canceledProducts.every(item => item.status === 'Cancelled')) {
+      order.status = 'Cancelled';
+    }
+
+    await order.save();
     return order;
   } catch (error) {
-    console.error("Lỗi trong cancelOrder service:", error);
-    throw { status: error.status || 500, message: error.message || "Lỗi hệ thống" };
+    throw { status: error.status || 500, message: error.message || 'Lỗi hệ thống' };
   }
 };
 
 const deliverOrder = async (orderId) => {
   try {
     const order = await Order.findById(orderId);
-    if (!order) throw { status: 404, message: "Order not found" };
+    if (!order) throw { status: 404, message: 'Không tìm thấy đơn hàng' };
 
-    if (order.status !== "Shipped") throw { status: 400, message: "Order is not in Shipped status" };
+    // Kiểm tra trạng thái đơn hàng có phải là "Shipped" không
+    if (order.status !== 'Shipped') {
+      throw { status: 400, message: 'Đơn hàng chưa được giao đầy đủ' };
+    }
 
-    order.status = "Delivered";
+    // Cập nhật trạng thái đơn hàng thành "Delivered" và đã thanh toán
+    order.status = 'Delivered';
     order.isPaid = true;
-    await order.save();
 
+    await order.save();
     return order;
   } catch (error) {
-    console.error("Error in deliverOrder service:", error);
-    throw { status: error.status || 500, message: error.message || "Internal server error" };
+    console.error("Lỗi trong deliverOrder service:", error);
+    throw { status: error.status || 500, message: error.message || 'Lỗi hệ thống' };
   }
 };
 
@@ -336,95 +358,51 @@ const handleVNPayCallback = async (req, res) => {
   }
 };
 
-const getOrdersByTimePeriod = async (status, timePeriod, date) => {
+const getOrdersByTimePeriod = async (status, timePeriod, date, shopId = null) => {
   try {
     let startUtcDate, endUtcDate;
     const selectedDate = new Date(date);
 
     if (timePeriod === "day") {
-      startUtcDate = new Date(
-        selectedDate.getFullYear(),
-        selectedDate.getMonth(),
-        selectedDate.getDate(),
-        0,
-        0,
-        0
-      );
-      endUtcDate = new Date(
-        selectedDate.getFullYear(),
-        selectedDate.getMonth(),
-        selectedDate.getDate(),
-        23,
-        59,
-        59
-      );
+      startUtcDate = new Date(selectedDate.setHours(0, 0, 0, 0));
+      endUtcDate = new Date(selectedDate.setHours(23, 59, 59, 999));
     } else if (timePeriod === "week") {
       const dayOfWeek = selectedDate.getDay();
-      const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-      const diffToSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
-
-      startUtcDate = new Date(
-        selectedDate.getFullYear(),
-        selectedDate.getMonth(),
-        selectedDate.getDate() + diffToMonday,
-        0,
-        0,
-        0
-      );
-
-      endUtcDate = new Date(
-        selectedDate.getFullYear(),
-        selectedDate.getMonth(),
-        selectedDate.getDate() + diffToSunday,
-        23,
-        59,
-        59
-      );
+      startUtcDate = new Date(selectedDate.setDate(selectedDate.getDate() - dayOfWeek + 1));
+      endUtcDate = new Date(selectedDate.setDate(startUtcDate.getDate() + 6));
     } else if (timePeriod === "month") {
-      startUtcDate = new Date(
-        selectedDate.getFullYear(),
-        selectedDate.getMonth(),
-        1
-      );
-      endUtcDate = new Date(
-        selectedDate.getFullYear(),
-        selectedDate.getMonth() + 1,
-        0,
-        23,
-        59,
-        59
-      );
+      startUtcDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+      endUtcDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0, 23, 59, 59);
     } else {
       throw new Error("Invalid time period. Use 'day', 'week', or 'month'.");
     }
 
-    const orders = await Order.find({
+    const filter = {
       status,
       createdAt: { $gte: startUtcDate, $lte: endUtcDate }
-    }).populate("products.productId");
+    };
 
-    const ordersWithVietnamTime = orders.map((order) => ({
-      ...order.toObject(),
-      createdAt: order.createdAt,
-      updatedAt: order.updatedAt
-    }));
+    if (shopId) filter["products.shopId"] = shopId;
 
-    const totalProducts = orders.reduce((sum, order) => {
-      return (
-        sum +
-        order.products.reduce((productSum, product) => {
-          return productSum + product.quantity;
-        }, 0)
-      );
-    }, 0);
-    const totalOrders = orders.length;
-    const totalAmount = orders.reduce(
-      (sum, order) => sum + order.orderTotal,
+    const orders = await Order.find(filter).populate("products.productId");
+
+    const filteredOrders = shopId
+      ? orders.map(order => {
+          const shopProducts = order.products.filter(item => item.shopId.toString() === shopId);
+          return { ...order.toObject(), products: shopProducts };
+        }).filter(order => order.products.length > 0)
+      : orders;
+
+    const totalProducts = filteredOrders.reduce(
+      (sum, order) => sum + order.products.reduce((acc, item) => acc + item.quantity, 0),
       0
     );
 
+    const totalOrders = filteredOrders.length;
+    const totalAmount = filteredOrders.reduce((sum, order) => sum + order.orderTotal, 0);
+
     return {
-      orders: ordersWithVietnamTime,
+      orders: filteredOrders,
       totalProducts,
       totalAmount,
       totalOrders,
@@ -436,7 +414,8 @@ const getOrdersByTimePeriod = async (status, timePeriod, date) => {
     throw error;
   }
 };
-const getTotalRevenue = async () => {
+// Tính tổng doanh thu của tất cả các Shop
+const getTotalRevenueAllShops = async () => {
   try {
     const deliveredOrders = await Order.find({ status: "Delivered" });
 
@@ -447,17 +426,56 @@ const getTotalRevenue = async () => {
 
     return {
       status: "OK",
+      message: "Tổng doanh thu của tất cả các Shop",
       totalRevenue
     };
   } catch (error) {
-    console.error("Error in getTotalRevenue:", error);
+    console.error("Error in getTotalRevenueAllShops:", error);
     throw {
       status: "ERR",
-      message: "Không thể tính tổng doanh thu",
+      message: "Không thể tính tổng doanh thu của tất cả các Shop",
       error: error.message
     };
   }
 };
+
+// Tính tổng doanh thu của từng Shop theo shopId
+const getTotalRevenueByShop = async (shopId) => {
+  try {
+    const deliveredOrders = await Order.find({ 
+      status: "Delivered", 
+      "products.shopId": shopId 
+    });
+
+    const totalRevenue = deliveredOrders.reduce((sum, order) => {
+      const shopProducts = order.products.filter(
+        (item) => String(item.shopId) === String(shopId)
+      );
+
+      const shopRevenue = shopProducts.reduce(
+        (total, product) => total + product.price * product.quantity,
+        0
+      );
+
+      return sum + shopRevenue;
+    }, 0);
+
+    return {
+      status: "OK",
+      message: `Tổng doanh thu của Shop ${shopId}`,
+      totalRevenue
+    };
+  } catch (error) {
+    console.error("Error in getTotalRevenueByShop:", error);
+    throw {
+      status: "ERR",
+      message: `Không thể tính tổng doanh thu của Shop ${shopId}`,
+      error: error.message
+    };
+  }
+};
+
+
 module.exports = {
   createOrder,
   getAllOrdersByUser,
@@ -470,5 +488,6 @@ module.exports = {
   handleVNPayCallback,
   updatePaymentStatus,
   getOrdersByTimePeriod,
-  getTotalRevenue
+  getTotalRevenueAllShops,
+  getTotalRevenueByShop,
 };

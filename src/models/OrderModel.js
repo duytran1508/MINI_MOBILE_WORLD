@@ -26,12 +26,14 @@ const orderSchema = new mongoose.Schema(
           ref: "Product",
           required: true
         },
-        quantity: { type: Number, required: true },
-        shopId: {
+        shopId: {  // Thêm shopId để biết sản phẩm thuộc Shop nào
           type: mongoose.Schema.Types.ObjectId,
           ref: "Shop",
           required: true
-        }
+        },
+        quantity: { type: Number, required: true },
+        price: { type: Number, required: true },
+        approved: { type: Boolean, default: false }  // Trạng thái duyệt của sản phẩm
       }
     ],
     shippingAddress: { type: String },
