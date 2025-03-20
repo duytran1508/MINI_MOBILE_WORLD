@@ -148,8 +148,6 @@ const getCartByUserId = async (userId) => {
     if (!cart) {
       throw { status: 404, message: "Cart not found" };
     }
-
-    // Nhóm sản phẩm theo shopId
     const groupedByShop = cart.products.reduce((acc, item) => {
       const shopId = item.shopId.toString();
       if (!acc[shopId]) acc[shopId] = [];
@@ -157,7 +155,10 @@ const getCartByUserId = async (userId) => {
       return acc;
     }, {});
 
-    return groupedByShop; // Trả về danh sách sản phẩm đã nhóm theo shop
+    return {
+      cartId: cart._id,  
+      groupedByShop
+    };
   } catch (error) {
     console.error("Error in getCartByUserId:", error);
     throw { status: 500, message: "Internal server error" };
