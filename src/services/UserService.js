@@ -20,11 +20,8 @@ const createUser = (newUser) => {
           message: "The email is already in use"
         });
       }
-
       const hash = bcrypt.hashSync(password, 10);
-
       const otpToken = await OTPService.sendMailWithOTP(email);
-
       const savedTempUser = await TempUser.create({
         name,
         email,

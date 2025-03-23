@@ -26,31 +26,27 @@ const createOrder = async (
       return { status: "FAIL", message: "Không tìm thấy giỏ hàng" };
     }
 
-    // Log kiểm tra giỏ hàng
-    console.log("Giỏ hàng hiện tại:", JSON.stringify(cart.products, null, 2));
-
-    // Lọc sản phẩm dựa trên productIds
     const selectedProducts = cart.products.filter(item =>
       productIds.includes(String(item.productId._id))
     );
-
-    // Kiểm tra sản phẩm đã chọn
-    console.log("Sản phẩm đã chọn:", JSON.stringify(selectedProducts, null, 2));
 
     if (selectedProducts.length === 0) {
       return { status: "FAIL", message: "Không có sản phẩm hợp lệ trong giỏ hàng" };
     }
 
-    // Lấy thông tin sản phẩm và kiểm tra
     const products = selectedProducts.map(item => ({
       productId: item.productId._id,
       shopId: item.productId.shopId,
       quantity: item.quantity,
       price: item.productId.promotionPrice || item.productId.price,
+      approved: false  // Mặc định sản phẩm chưa được duyệt
     }));
 
-    // Log kiểm tra sản phẩm trước khi lưu
-    console.log("Danh sách sản phẩm lưu vào đơn hàng:", JSON.stringify(products, null, 2));
+    //  **Khởi tạo trạng thái từng shop**
+    const shopStatus = {};
+    products.forEach(p => {
+      shopStatus[p.shopId.toString()] = "Pending";
+    });
 
     // Tính tổng tiền
     const totalPrice = products.reduce(
@@ -70,10 +66,9 @@ const createOrder = async (
       }
     }
 
-    const discountedPrice = totalPrice + shippingFee + VAT - discount;
-    const orderTotal = parseFloat(Math.max(discountedPrice, 0).toFixed(2));
+    const orderTotal = totalPrice + shippingFee + VAT - discount;
 
-    // Tạo đơn hàng mới
+    // **Cập nhật `shopStatus` khi tạo đơn hàng**
     const newOrder = new Order({
       name,
       phone,
@@ -88,10 +83,11 @@ const createOrder = async (
       shippingFee,
       orderTotal,
       status: "Pending",
+      isPaid: false,
+      shopStatus  
     });
 
     await newOrder.save();
-    console.log("Đơn hàng đã lưu:", JSON.stringify(newOrder, null, 2));
 
     // Cập nhật giỏ hàng: Xóa các sản phẩm đã thanh toán
     cart.products = cart.products.filter(
@@ -102,17 +98,14 @@ const createOrder = async (
 
     return {
       status: "OK",
-      data: {
-        ...newOrder.toObject(),
-        discount,
-        totalPrice,
-      },
+      data: newOrder
     };
   } catch (error) {
     console.error("Lỗi trong createOrder service:", error);
     return { status: "FAIL", message: "Lỗi hệ thống, vui lòng thử lại sau." };
   }
 };
+
 
 const getAllOrdersByUser = async (userId) => {
   try {
@@ -208,70 +201,85 @@ const shipOrder = async (orderId, shopId) => {
     if (!isShipped) {
       return { status: "FAIL", message: "Không có sản phẩm nào cần giao" };
     }
-
+        // Cập nhật trạng thái của shop trong đơn hàng
+    order.shopStatus.set(shopId, "Shipped");
     // Kiểm tra nếu tất cả các sản phẩm đã được duyệt
-    if (order.products.every((item) => item.approved)) {
+    if ([...order.shopStatus.values()].every(status => status === "Shipped")) {
       order.status = "Shipped";
+    } else {
+      order.status = "Partially Shipped";
     }
 
     await order.save();
-    return { status: "OK", message: "Đã giao hàng", data: order };
+    return { status: "OK", message: `Shop ${shopId} đã giao hàng`, data: order };
   } catch (error) {
     console.error("Lỗi trong shipOrder service:", error);
-    return { status: "FAIL", message: error.message || "Lỗi hệ thống" };
+    return { status: "FAIL", message: "Lỗi hệ thống" };
   }
 };
-
-
 const cancelOrder = async (orderId, shopId) => {
   try {
-    const order = await Order.findById(orderId).populate('products.productId');
+    const order = await Order.findById(orderId);
+
     if (!order) throw { status: 404, message: 'Không tìm thấy đơn hàng' };
 
-    const canceledProducts = order.products.map(item => {
-      if (item.shopId.toString() === shopId && item.status !== 'Delivered') {
-        item.status = 'Cancelled';
-        return item;
+    let isCancelled = false;
+
+    order.products.forEach((item) => {
+      if (item.shopId.toString() === shopId && !item.approved) {
+        item.approved = false;  // Đánh dấu sản phẩm của shop này bị hủy
+        isCancelled = true;
       }
-      return item;
     });
 
-    if (!canceledProducts.some(item => item.status === 'Cancelled'))
-      throw { status: 400, message: 'Không có sản phẩm nào cần hủy' };
+    if (!isCancelled) {
+      return { status: "FAIL", message: "Không có sản phẩm nào cần hủy" };
+    }
 
-    if (canceledProducts.every(item => item.status === 'Cancelled')) {
-      order.status = 'Cancelled';
+    // Đánh dấu shop này đã hủy đơn
+    order.shopStatus.set(shopId, "Cancelled");
+
+    // Nếu tất cả các shop đều hủy, hủy toàn bộ đơn hàng
+    if ([...order.shopStatus.values()].every(status => status === "Cancelled")) {
+      order.status = "Cancelled";
+    } else {
+      order.status = "Partially Cancelled";
     }
 
     await order.save();
-    return order;
+    return { status: "OK", message: `Shop ${shopId} đã hủy đơn hàng`, data: order };
   } catch (error) {
     throw { status: error.status || 500, message: error.message || 'Lỗi hệ thống' };
   }
 };
-
-const deliverOrder = async (orderId) => {
+const deliverOrder = async (orderId, shopId) => {
   try {
     const order = await Order.findById(orderId);
+
     if (!order) throw { status: 404, message: 'Không tìm thấy đơn hàng' };
 
-    // Kiểm tra trạng thái đơn hàng có phải là "Shipped" không
-    if (order.status !== 'Shipped') {
-      throw { status: 400, message: 'Đơn hàng chưa được giao đầy đủ' };
+    if (order.shopStatus.get(shopId) !== "Shipped") {
+      return { status: "FAIL", message: `Shop ${shopId} chưa giao hàng, không thể hoàn tất đơn hàng` };
     }
 
-    // Cập nhật trạng thái đơn hàng thành "Delivered" và đã thanh toán
-    order.status = 'Delivered';
-    order.isPaid = true;
+    // Đánh dấu shop này đã giao hàng thành công
+    order.shopStatus.set(shopId, "Delivered");
+
+    // Nếu tất cả shop đã giao hàng, cập nhật trạng thái đơn hàng thành "Delivered"
+    if ([...order.shopStatus.values()].every(status => status === "Delivered")) {
+      order.status = "Delivered";
+      order.isPaid = true;
+    } else {
+      order.status = "Partially Delivered";
+    }
 
     await order.save();
-    return order;
+    return { status: "OK", message: `Shop ${shopId} đã giao hàng`, data: order };
   } catch (error) {
     console.error("Lỗi trong deliverOrder service:", error);
     throw { status: error.status || 500, message: error.message || 'Lỗi hệ thống' };
   }
 };
-
 const updatePaymentStatus = async (orderId, isSuccess) => {
   console.log(isSuccess);
 
@@ -300,7 +308,6 @@ const updatePaymentStatus = async (orderId, isSuccess) => {
     };
   }
 };
-
 const handleVNPayCallback = async (req, res) => {
   try {
     const { vnp_ResponseCode, vnp_TxnRef } = req.query;
@@ -382,23 +389,35 @@ const getOrdersByTimePeriod = async (status, timePeriod, date, shopId = null) =>
       createdAt: { $gte: startUtcDate, $lte: endUtcDate }
     };
 
-    if (shopId) filter["products.shopId"] = shopId;
+    if (shopId) {
+      filter["products"] = { $elemMatch: { shopId: shopId } };
+    }
 
     const orders = await Order.find(filter).populate("products.productId");
 
+    // Nếu có `shopId`, chỉ lấy sản phẩm của shop đó và tính lại tổng tiền
     const filteredOrders = shopId
       ? orders.map(order => {
           const shopProducts = order.products.filter(item => item.shopId.toString() === shopId);
-          return { ...order.toObject(), products: shopProducts };
+
+          return {
+            ...order.toObject(),
+            products: shopProducts,
+            orderTotal: shopProducts.reduce((total, item) => total + item.price * item.quantity, 0)
+          };
         }).filter(order => order.products.length > 0)
       : orders;
 
+    // Tổng số lượng sản phẩm
     const totalProducts = filteredOrders.reduce(
       (sum, order) => sum + order.products.reduce((acc, item) => acc + item.quantity, 0),
       0
     );
 
+    // Tổng số đơn hàng
     const totalOrders = filteredOrders.length;
+
+    // Tổng tiền của tất cả các đơn (cần kiểm tra `orderTotal` mới tính đúng khi có `shopId`)
     const totalAmount = filteredOrders.reduce((sum, order) => sum + order.orderTotal, 0);
 
     return {
@@ -419,15 +438,30 @@ const getTotalRevenueAllShops = async () => {
   try {
     const deliveredOrders = await Order.find({ status: "Delivered" });
 
-    const totalRevenue = deliveredOrders.reduce(
-      (sum, order) => sum + order.orderTotal,
-      0
-    );
+    let totalRevenue = 0;
+    let revenueByShop = {};
+
+    deliveredOrders.forEach(order => {
+      order.products.forEach(product => {
+        const shopId = product.shopId.toString();
+        const revenue = product.price * product.quantity;
+
+        // Cộng tổng doanh thu của từng shop
+        if (!revenueByShop[shopId]) {
+          revenueByShop[shopId] = 0;
+        }
+        revenueByShop[shopId] += revenue;
+
+        // Cộng tổng doanh thu toàn bộ
+        totalRevenue += revenue;
+      });
+    });
 
     return {
       status: "OK",
       message: "Tổng doanh thu của tất cả các Shop",
-      totalRevenue
+      totalRevenue,
+      revenueByShop
     };
   } catch (error) {
     console.error("Error in getTotalRevenueAllShops:", error);
@@ -438,27 +472,27 @@ const getTotalRevenueAllShops = async () => {
     };
   }
 };
-
 // Tính tổng doanh thu của từng Shop theo shopId
 const getTotalRevenueByShop = async (shopId) => {
   try {
-    const deliveredOrders = await Order.find({ 
-      status: "Delivered", 
-      "products.shopId": shopId 
+    // Truy vấn đơn hàng đã giao có sản phẩm thuộc shopId
+    const deliveredOrders = await Order.find({
+      status: "Delivered",
+      products: { $elemMatch: { shopId: shopId } }
     });
 
-    const totalRevenue = deliveredOrders.reduce((sum, order) => {
-      const shopProducts = order.products.filter(
-        (item) => String(item.shopId) === String(shopId)
-      );
+    let totalRevenue = 0;
+
+    deliveredOrders.forEach(order => {
+      const shopProducts = order.products.filter(item => item.shopId.toString() === shopId);
 
       const shopRevenue = shopProducts.reduce(
-        (total, product) => total + product.price * product.quantity,
+        (sum, product) => sum + product.price * product.quantity,
         0
       );
 
-      return sum + shopRevenue;
-    }, 0);
+      totalRevenue += shopRevenue;
+    });
 
     return {
       status: "OK",
@@ -474,6 +508,7 @@ const getTotalRevenueByShop = async (shopId) => {
     };
   }
 };
+
 
 
 module.exports = {

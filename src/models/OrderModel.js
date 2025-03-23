@@ -9,31 +9,15 @@ const toVietnamTime = (date) => {
 
 const orderSchema = new mongoose.Schema(
   {
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true
-    },
-    cartId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Cart",
-      required: true
-    },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    cartId: { type: mongoose.Schema.Types.ObjectId, ref: "Cart", required: true },
     products: [
       {
-        productId: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Product",
-          required: true
-        },
-        shopId: {  // Thêm shopId để biết sản phẩm thuộc Shop nào
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Shop",
-          required: true
-        },
+        productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
+        shopId: { type: mongoose.Schema.Types.ObjectId, ref: "Shop", required: true },
         quantity: { type: Number, required: true },
         price: { type: Number, required: true },
-        approved: { type: Boolean, default: false }  // Trạng thái duyệt của sản phẩm
+        approved: { type: Boolean, default: false }
       }
     ],
     shippingAddress: { type: String },
@@ -43,23 +27,24 @@ const orderSchema = new mongoose.Schema(
     totalPrice: { type: Number },
     shippingFee: { type: Number, default: 0 },
     VAT: { type: Number, default: 0 },
-    voucher: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Voucher"
-    },
+    voucher: { type: mongoose.Schema.Types.ObjectId, ref: "Voucher" },
     orderTotal: { type: Number },
-    status: {
-      type: String,
-      enum: ["Pending", "Shipped", "Delivered", "Cancelled"],
-      default: "Pending"
+    status: { 
+      type: String, 
+      enum: ["Pending", "Partially Shipped", "Shipped", "Partially Delivered", "Delivered", "Partially Cancelled" ,"Cancelled"], 
+      default: "Pending" 
     },
-    isPaid: {
-      type: Boolean,
-      default: false
+    isPaid: { type: Boolean, default: false },
+    shopStatus: {
+      type: Map,
+      of: String,
+      default: {}
     }
   },
   { timestamps: true }
 );
+
+
 
 // Middleware để chuyển đổi thời gian sang GMT+7
 orderSchema.pre("save", function (next) {

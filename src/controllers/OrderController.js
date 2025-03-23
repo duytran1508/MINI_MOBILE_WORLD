@@ -14,30 +14,49 @@ const createOrder = async (req, res) => {
       voucherCode
     } = req.body;
 
-    const selectedProductIds = Array.isArray(productIds)
-      ? productIds
-      : [productIds];
+    if (!userId || !cartId || !name || !phone || !email) {
+      return res.status(400).json({
+        status: "ERR",
+        message: "Thiếu thông tin bắt buộc (userId, cartId, name, phone, email)"
+      });
+    }
+
+    if (!Array.isArray(productIds) || productIds.length === 0) {
+      return res.status(400).json({
+        status: "ERR",
+        message: "Danh sách sản phẩm không hợp lệ"
+      });
+    }
 
     const newOrder = await OrderService.createOrder(
       userId,
       cartId,
       shippingAddress,
-      selectedProductIds,
+      productIds,
       name,
       phone,
       email,
       voucherCode
     );
 
-    res.status(200).json({ status: "OK", data: newOrder });
+    // Kiểm tra phản hồi từ service
+    if (!newOrder || newOrder.status === "FAIL") {
+      return res.status(400).json({
+        status: "ERR",
+        message: newOrder.message || "Không thể tạo đơn hàng"
+      });
+    }
+
+    res.status(201).json({ status: "OK", data: newOrder.data });
   } catch (error) {
     console.error("Lỗi trong createOrder controller:", error);
     res.status(error.status || 500).json({
       status: "ERR",
-      message: error.message || "Internal server error"
+      message: error.message || "Lỗi hệ thống"
     });
   }
 };
+
 const getAllOrdersByUser = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -124,35 +143,96 @@ const getAllOrdersByShop = async (req, res) => {
 const shipOrder = async (req, res) => {
   try {
     const { orderId, shopId } = req.body;
+
+    if (!orderId || !shopId) {
+      return res.status(400).json({
+        status: "ERR",
+        message: "Thiếu thông tin orderId hoặc shopId"
+      });
+    }
+
     const shippedOrder = await OrderService.shipOrder(orderId, shopId);
-    res.status(200).json({ status: "OK", message: "Đã giao hàng", data: shippedOrder });
+
+    if (shippedOrder.status === "FAIL") {
+      return res.status(400).json({
+        status: "ERR",
+        message: shippedOrder.message || "Không thể giao hàng"
+      });
+    }
+
+    res.status(200).json({
+      status: "OK",
+      message: `Shop ${shopId} đã giao hàng`,
+      data: shippedOrder
+    });
   } catch (error) {
+    console.error("Lỗi trong shipOrder controller:", error);
     res.status(error.status || 500).json({
       status: "ERR",
       message: error.message || "Lỗi hệ thống"
     });
   }
 };
-
 const cancelOrder = async (req, res) => {
   try {
-    const { orderId } = req.body;
-    const canceledOrder = await OrderService.cancelOrder(orderId);
-    res.status(200).json({ status: "OK", message: "Đã hủy đơn hàng", data: canceledOrder });
+    const { orderId, shopId } = req.body;
+
+    if (!orderId || !shopId) {
+      return res.status(400).json({
+        status: "ERR",
+        message: "Thiếu thông tin orderId hoặc shopId"
+      });
+    }
+
+    const canceledOrder = await OrderService.cancelOrder(orderId, shopId);
+
+    if (canceledOrder.status === "FAIL") {
+      return res.status(400).json({
+        status: "ERR",
+        message: canceledOrder.message || "Không thể hủy đơn hàng"
+      });
+    }
+
+    res.status(200).json({
+      status: "OK",
+      message: `Shop ${shopId} đã hủy đơn hàng`,
+      data: canceledOrder
+    });
   } catch (error) {
+    console.error("Lỗi trong cancelOrder controller:", error);
     res.status(error.status || 500).json({
       status: "ERR",
       message: error.message || "Lỗi hệ thống"
     });
   }
 };
-
 const deliverOrder = async (req, res) => {
   try {
-    const { orderId } = req.body;
-    const deliveredOrder = await OrderService.deliverOrder(orderId);
-    res.status(200).json({ status: "OK", message: "Đã giao thành công", data: deliveredOrder });
+    const { orderId, shopId } = req.body;
+
+    if (!orderId || !shopId) {
+      return res.status(400).json({
+        status: "ERR",
+        message: "Thiếu thông tin orderId hoặc shopId"
+      });
+    }
+
+    const deliveredOrder = await OrderService.deliverOrder(orderId, shopId);
+
+    if (deliveredOrder.status === "FAIL") {
+      return res.status(400).json({
+        status: "ERR",
+        message: deliveredOrder.message || "Không thể xác nhận giao hàng"
+      });
+    }
+
+    res.status(200).json({
+      status: "OK",
+      message: `Shop ${shopId} đã xác nhận giao hàng`,
+      data: deliveredOrder
+    });
   } catch (error) {
+    console.error("Lỗi trong deliverOrder controller:", error);
     res.status(error.status || 500).json({
       status: "ERR",
       message: error.message || "Lỗi hệ thống"
@@ -162,6 +242,14 @@ const deliverOrder = async (req, res) => {
 const getOrdersByTimePeriodAllShops = async (req, res) => {
   try {
     const { status, timePeriod, date } = req.query;
+
+    if (!status || !timePeriod || !date) {
+      return res.status(400).json({
+        status: "ERR",
+        message: "Thiếu thông tin bắt buộc: status, timePeriod, date"
+      });
+    }
+
     const result = await OrderService.getOrdersByTimePeriod(status, timePeriod, date);
     return res.status(200).json({ status: "OK", data: result });
   } catch (error) {
@@ -173,10 +261,17 @@ const getOrdersByTimePeriodAllShops = async (req, res) => {
     });
   }
 };
-
 const getOrdersByTimePeriodByShop = async (req, res) => {
   try {
     const { shopId, status, timePeriod, date } = req.query;
+
+    if (!shopId || !status || !timePeriod || !date) {
+      return res.status(400).json({
+        status: "ERR",
+        message: "Thiếu thông tin bắt buộc: shopId, status, timePeriod, date"
+      });
+    }
+
     const result = await OrderService.getOrdersByTimePeriod(status, timePeriod, date, shopId);
     return res.status(200).json({ status: "OK", data: result });
   } catch (error) {
@@ -188,12 +283,25 @@ const getOrdersByTimePeriodByShop = async (req, res) => {
     });
   }
 };
-// API lấy tổng doanh thu của tất cả các Shop
 const getTotalRevenueAllShops = async (req, res) => {
   try {
     const revenueData = await OrderService.getTotalRevenueAllShops();
-    return res.status(200).json(revenueData);
+
+    if (!revenueData || revenueData.status === "ERR") {
+      return res.status(500).json({
+        status: "ERR",
+        message: "Không thể lấy tổng doanh thu của tất cả các Shop"
+      });
+    }
+
+    return res.status(200).json({
+      status: "OK",
+      message: "Tổng doanh thu của tất cả các Shop",
+      totalRevenue: revenueData.totalRevenue,
+      revenueByShop: revenueData.revenueByShop
+    });
   } catch (error) {
+    console.error("Lỗi trong getTotalRevenueAllShops:", error);
     return res.status(500).json({
       status: "ERR",
       message: "Không thể lấy tổng doanh thu của tất cả các Shop",
@@ -201,8 +309,6 @@ const getTotalRevenueAllShops = async (req, res) => {
     });
   }
 };
-
-// API lấy tổng doanh thu của từng Shop theo shopId
 const getTotalRevenueByShop = async (req, res) => {
   try {
     const { shopId } = req.params;
@@ -215,8 +321,21 @@ const getTotalRevenueByShop = async (req, res) => {
     }
 
     const revenueData = await OrderService.getTotalRevenueByShop(shopId);
-    return res.status(200).json(revenueData);
+
+    if (!revenueData || revenueData.status === "ERR") {
+      return res.status(500).json({
+        status: "ERR",
+        message: `Không thể lấy tổng doanh thu của Shop ${shopId}`
+      });
+    }
+
+    return res.status(200).json({
+      status: "OK",
+      message: `Tổng doanh thu của Shop ${shopId}`,
+      totalRevenue: revenueData.totalRevenue
+    });
   } catch (error) {
+    console.error("Lỗi trong getTotalRevenueByShop:", error);
     return res.status(500).json({
       status: "ERR",
       message: "Không thể lấy tổng doanh thu của Shop",
@@ -224,8 +343,6 @@ const getTotalRevenueByShop = async (req, res) => {
     });
   }
 };
-
-
 module.exports = {
   getAllOrdersByUser,
   getAllOrders,

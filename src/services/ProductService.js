@@ -24,11 +24,7 @@ const createProduct = async (newProduct) => {
               message: "Thiếu thông tin bắt buộc (name, prices, categoryId, shopId)"
           };
       }
-
-      // Tính toán giá khuyến mãi (nếu có giảm giá)
       const promotionPrice = prices - (prices * discount) / 100;
-
-      // Tạo sản phẩm mới
       const createdProduct = await Product.create({
           name,
           quantityInStock: quantityInStock ?? 0,
@@ -64,8 +60,6 @@ const updateProduct = (id, data) => {
           message: "Product not found"
         });
       }
-
-      // Kiểm tra giá trị hợp lệ
       if (data.prices !== undefined && data.prices < 0) {
         return resolve({
           status: "ERR",
@@ -78,21 +72,16 @@ const updateProduct = (id, data) => {
           message: "Giảm giá phải từ 0 đến 100%"
         });
       }
-
-      // Nếu có ảnh mới, thay thế ảnh cũ hoàn toàn
       if (data.imageUrls && Array.isArray(data.imageUrls) && data.imageUrls.length > 0) {
         data.imageUrls = [...data.imageUrls]; // Chỉ giữ ảnh mới
       } else {
         data.imageUrls = checkProduct.imageUrls; // Nếu không có ảnh mới, giữ nguyên
       }
-
-      // Cập nhật giá khuyến mãi nếu có
       const prices = data.prices !== undefined ? data.prices : checkProduct.prices;
       const discount = data.discount !== undefined ? data.discount : checkProduct.discount;
       data.promotionPrice = prices - (prices * discount) / 100;
 
       const updatedProduct = await Product.findByIdAndUpdate(id, data, { new: true });
-
       resolve({
         status: "OK",
         message: "Product updated successfully",
@@ -147,9 +136,8 @@ const getAllProduct = async () => {
   return new Promise(async (resolve, reject) => {
       try {
           const allProducts = await Product.find()
-              .populate("categoryId", "name") // Lấy thông tin danh mục
-              .populate("shopId", "name");   // Lấy thông tin cửa hàng
-
+              .populate("categoryId", "name") 
+              .populate("shopId", "name");   
           resolve({
               status: "OK",
               message: "Lấy danh sách sản phẩm thành công!",

@@ -154,7 +154,6 @@ const getCartByUserId = async (userId) => {
       acc[shopId].push(item);
       return acc;
     }, {});
-
     return {
       cartId: cart._id,  
       groupedByShop
