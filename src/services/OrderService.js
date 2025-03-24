@@ -26,87 +26,88 @@ const createOrder = async (
       return { status: "FAIL", message: "Không tìm thấy giỏ hàng" };
     }
 
-    const selectedProducts = cart.products.filter(item =>
-      productIds.includes(String(item.productId._id))
-    );
-
-    if (selectedProducts.length === 0) {
-      return { status: "FAIL", message: "Không có sản phẩm hợp lệ trong giỏ hàng" };
-    }
-
-    const products = selectedProducts.map(item => ({
-      productId: item.productId._id,
-      shopId: item.productId.shopId,
-      quantity: item.quantity,
-      price: item.productId.promotionPrice || item.productId.price,
-      approved: false  // Mặc định sản phẩm chưa được duyệt
-    }));
-
-    //  **Khởi tạo trạng thái từng shop**
-    const shopStatus = {};
-    products.forEach(p => {
-      shopStatus[p.shopId.toString()] = "Pending";
-    });
-
-    // Tính tổng tiền
-    const totalPrice = products.reduce(
-      (total, product) => total + product.price * product.quantity,
-      0
-    );
-
-    const VAT = totalPrice * 0.1;
-    const shippingFee = totalPrice >= 50000000 ? 0 : 800000;
-
-    // Áp dụng mã giảm giá
-    let discount = 0;
-    if (voucherCode) {
-      const voucher = await Voucher.findOne({ code: voucherCode });
-      if (voucher && voucher.discount > 0 && voucher.discount <= 100) {
-        discount = (totalPrice + shippingFee + VAT) * (voucher.discount / 100);
+    // Nhóm sản phẩm theo `shopId`
+    const productsByShop = {};
+    cart.products.forEach((item) => {
+      if (productIds.includes(String(item.productId._id))) {
+        const shopId = item.productId.shopId.toString();
+        if (!productsByShop[shopId]) {
+          productsByShop[shopId] = [];
+        }
+        productsByShop[shopId].push({
+          productId: item.productId._id,
+          shopId: shopId,
+          quantity: item.quantity,
+          price: item.productId.promotionPrice || item.productId.price,
+        });
       }
-    }
-
-    const orderTotal = totalPrice + shippingFee + VAT - discount;
-
-    // **Cập nhật `shopStatus` khi tạo đơn hàng**
-    const newOrder = new Order({
-      name,
-      phone,
-      email,
-      userId,
-      cartId,
-      products,
-      shippingAddress,
-      totalPrice,
-      discount,
-      VAT,
-      shippingFee,
-      orderTotal,
-      status: "Pending",
-      isPaid: false,
-      shopStatus  
     });
 
-    await newOrder.save();
+    // Lưu danh sách các đơn hàng được tạo
+    const createdOrders = [];
 
-    // Cập nhật giỏ hàng: Xóa các sản phẩm đã thanh toán
+    // Lặp qua từng `shopId` để tạo đơn hàng riêng biệt
+    for (const shopId in productsByShop) {
+      const products = productsByShop[shopId];
+
+      // Tính tổng giá trị đơn hàng của từng shop
+      const totalPrice = products.reduce(
+        (total, product) => total + product.price * product.quantity,
+        0
+      );
+
+      const VAT = totalPrice * 0.1;
+      const shippingFee = totalPrice >= 50000000 ? 0 : 800000;
+
+      // Áp dụng mã giảm giá (nếu có)
+      let discount = 0;
+      if (voucherCode) {
+        const voucher = await Voucher.findOne({ code: voucherCode });
+        if (voucher && voucher.discount > 0 && voucher.discount <= 100) {
+          discount = (totalPrice + shippingFee + VAT) * (voucher.discount / 100);
+        }
+      }
+
+      const orderTotal = totalPrice + shippingFee + VAT - discount;
+
+      // Tạo đơn hàng riêng cho từng shop
+      const newOrder = new Order({
+        name,
+        phone,
+        email,
+        userId,
+        cartId,
+        products,
+        shippingAddress,
+        totalPrice,
+        discount,
+        VAT,
+        shippingFee,
+        orderTotal,
+        status: "Pending",
+        isPaid: false,
+      });
+
+      await newOrder.save();
+      createdOrders.push(newOrder);
+    }
+
+    // Cập nhật giỏ hàng: Xóa các sản phẩm đã đặt từ giỏ hàng
     cart.products = cart.products.filter(
-      item => !productIds.includes(String(item.productId._id))
+      (item) => !productIds.includes(String(item.productId._id))
     );
-
     await cart.save();
 
     return {
       status: "OK",
-      data: newOrder
+      message: "Đã tạo đơn hàng thành công cho từng shop",
+      orders: createdOrders
     };
   } catch (error) {
     console.error("Lỗi trong createOrder service:", error);
     return { status: "FAIL", message: "Lỗi hệ thống, vui lòng thử lại sau." };
   }
 };
-
-
 const getAllOrdersByUser = async (userId) => {
   try {
     const orders = await Order.find({ userId }).populate("products.productId");
@@ -116,7 +117,6 @@ const getAllOrdersByUser = async (userId) => {
     throw error;
   }
 };
-
 const getAllOrders = async () => {
   try {
     const orders = await Order.find().populate("products.productId");
@@ -126,7 +126,6 @@ const getAllOrders = async () => {
     throw error;
   }
 };
-
 const getOrderById = (orderId) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -150,27 +149,26 @@ const getOrderById = (orderId) => {
 };
 const getAllOrdersByShop = async (shopId) => {
   try {
+    // Lọc đơn hàng có ít nhất một sản phẩm của shopId
     const orders = await Order.find({ "products.shopId": shopId }).populate("products.productId");
 
-    // Lọc chính xác sản phẩm theo shopId trong mỗi đơn hàng
-    const filteredOrders = orders
-      .map(order => {
-        const shopProducts = order.products.filter(item => item.shopId.toString() === shopId);
+    // Lọc sản phẩm chỉ lấy sản phẩm thuộc shopId
+    const filteredOrders = orders.map(order => {
+      const shopProducts = order.products.filter(item => item.shopId.toString() === shopId);
 
-        return {
-          ...order.toObject(), 
-          products: shopProducts
-        };
-      })
-      .filter(order => order.products.length > 0); // Chỉ giữ đơn hàng có sản phẩm thuộc shop
+      return {
+        ...order.toObject(), 
+        products: shopProducts // Chỉ giữ lại sản phẩm thuộc shop
+      };
+    }).filter(order => order.products.length > 0); // Bỏ đơn hàng không có sản phẩm của shop
 
     return filteredOrders;
   } catch (error) {
+    console.error("Lỗi khi lấy đơn hàng của shop:", error);
     throw new Error("Lỗi khi lấy đơn hàng của shop: " + error.message);
   }
 };
-
-const shipOrder = async (orderId, shopId) => {
+const shipOrder = async (orderId) => {
   try {
     const order = await Order.findById(orderId).populate("products.productId");
 
@@ -178,193 +176,67 @@ const shipOrder = async (orderId, shopId) => {
       return { status: "FAIL", message: "Không tìm thấy đơn hàng" };
     }
 
-    let isShipped = false;
-
-    // Duyệt qua các sản phẩm trong đơn hàng
+    // Kiểm tra số lượng tồn kho trước khi giao
     order.products.forEach((item) => {
-      // Kiểm tra shopId và trạng thái Pending
-      if (item.shopId.toString() === shopId && !item.approved) {
-        item.approved = true;
-        isShipped = true;
-
-        // Cập nhật số lượng tồn kho
-        if (item.productId.quantityInStock >= item.quantity) {
-          item.productId.quantityInStock -= item.quantity;
-          item.productId.soldQuantity += item.quantity;
-          item.productId.save();
-        } else {
-          throw { status: 400, message: `Sản phẩm ${item.productId.name} không đủ số lượng tồn kho` };
-        }
+      if (item.productId.quantityInStock < item.quantity) {
+        throw { status: 400, message: `Sản phẩm ${item.productId.name} không đủ số lượng tồn kho` };
       }
     });
 
-    if (!isShipped) {
-      return { status: "FAIL", message: "Không có sản phẩm nào cần giao" };
-    }
-        // Cập nhật trạng thái của shop trong đơn hàng
-    order.shopStatus.set(shopId, "Shipped");
-    // Kiểm tra nếu tất cả các sản phẩm đã được duyệt
-    if ([...order.shopStatus.values()].every(status => status === "Shipped")) {
-      order.status = "Shipped";
-    } else {
-      order.status = "Partially Shipped";
-    }
+    // Cập nhật số lượng tồn kho
+    order.products.forEach((item) => {
+      item.productId.quantityInStock -= item.quantity;
+      item.productId.soldQuantity += item.quantity;
+      item.productId.save();
+    });
+
+    // Cập nhật trạng thái đơn hàng
+    order.status = "Shipped";
 
     await order.save();
-    return { status: "OK", message: `Shop ${shopId} đã giao hàng`, data: order };
+    return { status: "OK", message: "Đơn hàng đã được giao thành công", data: order };
   } catch (error) {
     console.error("Lỗi trong shipOrder service:", error);
     return { status: "FAIL", message: "Lỗi hệ thống" };
   }
 };
-const cancelOrder = async (orderId, shopId) => {
+const cancelOrder = async (orderId) => {
   try {
     const order = await Order.findById(orderId);
 
     if (!order) throw { status: 404, message: 'Không tìm thấy đơn hàng' };
 
-    let isCancelled = false;
-
-    order.products.forEach((item) => {
-      if (item.shopId.toString() === shopId && !item.approved) {
-        item.approved = false;  // Đánh dấu sản phẩm của shop này bị hủy
-        isCancelled = true;
-      }
-    });
-
-    if (!isCancelled) {
-      return { status: "FAIL", message: "Không có sản phẩm nào cần hủy" };
-    }
-
-    // Đánh dấu shop này đã hủy đơn
-    order.shopStatus.set(shopId, "Cancelled");
-
-    // Nếu tất cả các shop đều hủy, hủy toàn bộ đơn hàng
-    if ([...order.shopStatus.values()].every(status => status === "Cancelled")) {
-      order.status = "Cancelled";
-    } else {
-      order.status = "Partially Cancelled";
-    }
-
+    // Cập nhật trạng thái đơn hàng thành "Cancelled"
+    order.status = "Cancelled";
     await order.save();
-    return { status: "OK", message: `Shop ${shopId} đã hủy đơn hàng`, data: order };
+
+    return { status: "OK", message: "Đơn hàng đã bị hủy", data: order };
   } catch (error) {
     throw { status: error.status || 500, message: error.message || 'Lỗi hệ thống' };
   }
 };
-const deliverOrder = async (orderId, shopId) => {
+const deliverOrder = async (orderId) => {
   try {
     const order = await Order.findById(orderId);
 
     if (!order) throw { status: 404, message: 'Không tìm thấy đơn hàng' };
 
-    if (order.shopStatus.get(shopId) !== "Shipped") {
-      return { status: "FAIL", message: `Shop ${shopId} chưa giao hàng, không thể hoàn tất đơn hàng` };
+    // Kiểm tra trạng thái đơn hàng có phải là "Shipped" không
+    if (order.status !== "Shipped") {
+      return { status: "FAIL", message: "Đơn hàng chưa được giao đầy đủ" };
     }
 
-    // Đánh dấu shop này đã giao hàng thành công
-    order.shopStatus.set(shopId, "Delivered");
-
-    // Nếu tất cả shop đã giao hàng, cập nhật trạng thái đơn hàng thành "Delivered"
-    if ([...order.shopStatus.values()].every(status => status === "Delivered")) {
-      order.status = "Delivered";
-      order.isPaid = true;
-    } else {
-      order.status = "Partially Delivered";
-    }
+    // Cập nhật trạng thái đơn hàng thành "Delivered" và đã thanh toán
+    order.status = "Delivered";
+    order.isPaid = true;
 
     await order.save();
-    return { status: "OK", message: `Shop ${shopId} đã giao hàng`, data: order };
+    return { status: "OK", message: "Đơn hàng đã được giao thành công", data: order };
   } catch (error) {
     console.error("Lỗi trong deliverOrder service:", error);
     throw { status: error.status || 500, message: error.message || 'Lỗi hệ thống' };
   }
 };
-const updatePaymentStatus = async (orderId, isSuccess) => {
-  console.log(isSuccess);
-
-  try {
-    const order = await Order.findById(orderId);
-    if (!order) {
-      return { success: false, message: "Không tìm thấy đơn hàng" };
-    }
-
-    if (isSuccess) {
-      order.isPaid = true;
-    }
-    await order.save();
-
-    return {
-      success: true,
-      message: "Cập nhật trạng thái thanh toán thành công",
-      returnUrl: "http://localhost:3000/ket-qua-thanh-toan"
-    };
-  } catch (e) {
-    console.error("Lỗi khi cập nhật trạng thái thanh toán:", e.message);
-    return {
-      success: false,
-      message: "Cập nhật trạng thái thanh toán thất bại",
-      error: e.message
-    };
-  }
-};
-const handleVNPayCallback = async (req, res) => {
-  try {
-    const { vnp_ResponseCode, vnp_TxnRef } = req.query;
-
-    if (!vnp_ResponseCode || !vnp_TxnRef) {
-      return res.status(400).json({
-        status: "ERR",
-        message: "Thiếu thông tin từ VNPay callback"
-      });
-    }
-
-    if (vnp_ResponseCode === "00") {
-      const updateResult = await OrderService.updatePaymentStatus(
-        vnp_TxnRef,
-        true
-      );
-
-      if (updateResult.success) {
-        return res.redirect(updateResult.returnUrl);
-      }
-
-      return res.status(400).json({
-        status: "ERR",
-        message: "Cập nhật trạng thái thanh toán thất bại"
-      });
-    } else if (vnp_ResponseCode === "24" || vnp_TransactionStatus === "02") {
-      const order = await Order.findOne({ vnp_TxnRef });
-
-      if (!order) {
-        return res.status(404).json({
-          status: "ERR",
-          message: "Không tìm thấy đơn hàng"
-        });
-      }
-
-      return res.status(200).json({
-        status: "ERR",
-        message: "Thanh toán bị hủy",
-        order: order
-      });
-    } else {
-      return res.status(400).json({
-        status: "ERR",
-        message: "Lỗi thanh toán từ VNPay",
-        errorCode: vnp_ResponseCode
-      });
-    }
-  } catch (e) {
-    console.error("Lỗi khi xử lý callback từ VNPay:", e.message);
-    return res.status(500).json({
-      status: "ERR",
-      message: "Lỗi hệ thống",
-      error: e.message
-    });
-  }
-};
-
 const getOrdersByTimePeriod = async (status, timePeriod, date, shopId = null) => {
   try {
     let startUtcDate, endUtcDate;
@@ -433,35 +305,19 @@ const getOrdersByTimePeriod = async (status, timePeriod, date, shopId = null) =>
     throw error;
   }
 };
-// Tính tổng doanh thu của tất cả các Shop
 const getTotalRevenueAllShops = async () => {
   try {
     const deliveredOrders = await Order.find({ status: "Delivered" });
 
-    let totalRevenue = 0;
-    let revenueByShop = {};
-
-    deliveredOrders.forEach(order => {
-      order.products.forEach(product => {
-        const shopId = product.shopId.toString();
-        const revenue = product.price * product.quantity;
-
-        // Cộng tổng doanh thu của từng shop
-        if (!revenueByShop[shopId]) {
-          revenueByShop[shopId] = 0;
-        }
-        revenueByShop[shopId] += revenue;
-
-        // Cộng tổng doanh thu toàn bộ
-        totalRevenue += revenue;
-      });
-    });
+    const totalRevenue = deliveredOrders.reduce(
+      (sum, order) => sum + order.orderTotal,
+      0
+    );
 
     return {
       status: "OK",
       message: "Tổng doanh thu của tất cả các Shop",
-      totalRevenue,
-      revenueByShop
+      totalRevenue
     };
   } catch (error) {
     console.error("Error in getTotalRevenueAllShops:", error);
@@ -472,7 +328,6 @@ const getTotalRevenueAllShops = async () => {
     };
   }
 };
-// Tính tổng doanh thu của từng Shop theo shopId
 const getTotalRevenueByShop = async (shopId) => {
   try {
     // Truy vấn đơn hàng đã giao có sản phẩm thuộc shopId
@@ -508,9 +363,6 @@ const getTotalRevenueByShop = async (shopId) => {
     };
   }
 };
-
-
-
 module.exports = {
   createOrder,
   getAllOrdersByUser,
@@ -520,8 +372,6 @@ module.exports = {
   cancelOrder,
   shipOrder,
   deliverOrder,
-  handleVNPayCallback,
-  updatePaymentStatus,
   getOrdersByTimePeriod,
   getTotalRevenueAllShops,
   getTotalRevenueByShop,

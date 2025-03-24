@@ -28,7 +28,7 @@ const createOrder = async (req, res) => {
       });
     }
 
-    const newOrder = await OrderService.createOrder(
+    const orderResult = await OrderService.createOrder(
       userId,
       cartId,
       shippingAddress,
@@ -39,23 +39,29 @@ const createOrder = async (req, res) => {
       voucherCode
     );
 
-    // Kiểm tra phản hồi từ service
-    if (!newOrder || newOrder.status === "FAIL") {
+    
+    if (!orderResult || orderResult.status === "FAIL") {
       return res.status(400).json({
         status: "ERR",
-        message: newOrder.message || "Không thể tạo đơn hàng"
+        message: orderResult.message || "Không thể tạo đơn hàng"
       });
     }
 
-    res.status(201).json({ status: "OK", data: newOrder.data });
+    return res.status(201).json({
+      status: "OK",
+      message: "Đã tạo đơn hàng thành công",
+      orders: orderResult.orders
+    });
+
   } catch (error) {
     console.error("Lỗi trong createOrder controller:", error);
-    res.status(error.status || 500).json({
+    return res.status(error.status || 500).json({
       status: "ERR",
       message: error.message || "Lỗi hệ thống"
     });
   }
 };
+
 
 const getAllOrdersByUser = async (req, res) => {
   try {

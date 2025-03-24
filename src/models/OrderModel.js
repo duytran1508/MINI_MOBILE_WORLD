@@ -17,7 +17,6 @@ const orderSchema = new mongoose.Schema(
         shopId: { type: mongoose.Schema.Types.ObjectId, ref: "Shop", required: true },
         quantity: { type: Number, required: true },
         price: { type: Number, required: true },
-        approved: { type: Boolean, default: false }
       }
     ],
     shippingAddress: { type: String },
@@ -29,17 +28,12 @@ const orderSchema = new mongoose.Schema(
     VAT: { type: Number, default: 0 },
     voucher: { type: mongoose.Schema.Types.ObjectId, ref: "Voucher" },
     orderTotal: { type: Number },
-    status: { 
-      type: String, 
-      enum: ["Pending", "Partially Shipped", "Shipped", "Partially Delivered", "Delivered", "Partially Cancelled" ,"Cancelled"], 
-      default: "Pending" 
+    status: {
+      type: String,
+      enum: ["Pending", "Shipped", "Delivered", "Cancelled"],
+      default: "Pending"
     },
     isPaid: { type: Boolean, default: false },
-    shopStatus: {
-      type: Map,
-      of: String,
-      default: {}
-    }
   },
   { timestamps: true }
 );
