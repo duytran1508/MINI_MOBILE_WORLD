@@ -4,79 +4,45 @@ const Shop = require("../models/ShopModel");
 
 const addOrUpdateProductInCart = async (userId, productId, quantity) => {
   try {
-    // Lấy sản phẩm từ database
-    const product = await Product.findById(productId);
+    const product = await Product.findById(productId).populate("shopId", "name");
+
     if (!product) {
       throw { status: 404, message: "Product not found" };
     }
-
-    // Kiểm tra xem số lượng sản phẩm trong kho có đủ không
+    const shopId = product.shopId._id;
+    const shopName = product.shopId.name;  
     if (quantity > product.quantityInStock) {
-      throw {
-        status: 400,
-        message: `Not enough stock for ${product.name}. Available: ${product.quantityInStock}`
-      };
+      throw { status: 400, message: `Not enough stock for ${product.name}. Available: ${product.quantityInStock}` };
+    }
+    const existingCart = await Cart.findOne({ userId });
+    const cart = existingCart || new Cart({ userId, products: [] });
+
+    const productIndex = cart.products.findIndex(
+      (p) => p.productId.toString() === productId.toString() && p.shopId.toString() === shopId.toString()
+    );
+
+    if (productIndex > -1) {
+      const newQuantity = cart.products[productIndex].quantity + quantity;
+      if (newQuantity > product.quantityInStock) {
+        throw { status: 400, message: `Not enough stock for ${product.name}. Available: ${product.quantityInStock}` };
+      }
+      cart.products[productIndex].quantity = newQuantity;
+    } else {
+      cart.products.push({ productId, quantity, shopId, shopName }); 
     }
 
-    // Lấy giỏ hàng hiện tại của người dùng
-    const existingCart = await Cart.findOne({ userId });
-    const cart =
-      existingCart ||
-      new Cart({
-        userId,
-        products: []
-      });
-
-    // Tìm sản phẩm trong giỏ hàng
-    // Tìm sản phẩm trong giỏ hàng nhưng phải cùng shop
-const productIndex = cart.products.findIndex(
-  (p) =>
-    p.productId.toString() === productId.toString() &&
-    p.shopId.toString() === product.shopId.toString() // Kiểm tra shopId
-);
-
-if (productIndex > -1) {
-  // Sản phẩm đã có trong giỏ hàng cùng shop => Cập nhật số lượng
-  const newQuantity = cart.products[productIndex].quantity + quantity;
-
-  // Kiểm tra số lượng có vượt quá kho không
-  if (newQuantity > product.quantityInStock) {
-    throw {
-      status: 400,
-      message: `Not enough stock for ${product.name}. Available: ${product.quantityInStock}`
-    };
-  }
-
-  cart.products[productIndex].quantity = newQuantity;
-} else {
-  // Sản phẩm chưa có trong giỏ hoặc có nhưng từ shop khác => Thêm sản phẩm mới
-  cart.products.push({ productId, quantity, shopId: product.shopId });
-}
-    // Tính toán lại tổng giá trị giỏ hàng
     cart.totalPrice = await cart.products.reduce(
       async (totalPromise, productItem) => {
         const total = await totalPromise;
         const productInDB = await Product.findById(productItem.productId);
-        const productPrice = productInDB
-          ? productInDB.promotionPrice ?? productInDB.prices
-          : 0;
-    
-        return (
-          total +
-          (isNaN(productPrice) || productPrice < 0
-            ? 0
-            : productPrice * productItem.quantity)
-        );
+        const productPrice = productInDB ? productInDB.promotionPrice ?? productInDB.prices : 0;
+        return total + (isNaN(productPrice) || productPrice < 0 ? 0 : productPrice * productItem.quantity);
       },
       Promise.resolve(0)
     );
 
-    // Lưu giỏ hàng
     await cart.save();
-    const populatedCart = await Cart.findById(cart._id).populate(
-      "products.productId"
-    );
-    return populatedCart;
+    return await Cart.findById(cart._id).populate("products.productId");
   } catch (error) {
     console.error("Error in addOrUpdateProductInCart service:", error);
     throw { status: 500, message: "Internal server error" };
@@ -85,13 +51,11 @@ if (productIndex > -1) {
 
 const UpdateProductInCart = async (userId, productId, quantity) => {
   try {
-    // Tìm giỏ hàng của người dùng
     const cart = await Cart.findOne({ userId });
     if (!cart) {
       throw { status: 404, message: "Cart not found" };
     }
 
-    // Tìm sản phẩm trong giỏ hàng
     const productIndex = cart.products.findIndex(
       (p) => p.productId.toString() === productId.toString()
     );
@@ -100,14 +64,12 @@ const UpdateProductInCart = async (userId, productId, quantity) => {
       throw { status: 404, message: "Product not found in cart" };
     }
 
-    // Giảm số lượng sản phẩm xuống 1 đơn vị
     if (cart.products[productIndex].quantity > 1) {
       cart.products[productIndex].quantity -= 1;
     } else {
       throw { status: 400, message: "Cannot decrease quantity below 1" };
     }
 
-    // Tính toán lại tổng giá (`totalPrice`)
     cart.totalPrice = await cart.products.reduce(
       async (totalPromise, productItem) => {
         const total = await totalPromise;
@@ -115,7 +77,7 @@ const UpdateProductInCart = async (userId, productId, quantity) => {
         const productPrice = productInDB
           ? productInDB.promotionPrice ?? productInDB.prices
           : 0;
-    
+
         return (
           total +
           (isNaN(productPrice) || productPrice < 0
@@ -126,20 +88,24 @@ const UpdateProductInCart = async (userId, productId, quantity) => {
       Promise.resolve(0)
     );
 
-    // Lưu giỏ hàng
     await cart.save();
-
-    // Populate thông tin sản phẩm và trả về
-    const populatedCart = await Cart.findById(cart._id).populate(
-      "products.productId"
-    );
+    const populatedCart = await Cart.findById(cart._id)
+      .populate({
+        path: "products.productId",
+        select: "name prices promotionPrice"
+      })
+      .populate({
+        path: "products.shopId",
+        select: "name"
+      });
 
     return populatedCart;
   } catch (error) {
-    console.error("Error in DecreaseProductQuantity service:", error);
+    console.error("Error in UpdateProductInCart service:", error);
     throw { status: 500, message: "Internal server error" };
   }
 };
+
 
 const getCartByUserId = async (userId) => {
   try {

@@ -34,6 +34,12 @@ const createOrder = async (
         if (!productsByShop[shopId]) {
           productsByShop[shopId] = [];
         }
+        if (item.quantity > item.productId.quantityInStock) {
+          throw {
+            status: "FAIL",
+            message: `Sản phẩm ${item.productId._id} không đủ hàng trong kho!`
+          };
+        }
         productsByShop[shopId].push({
           productId: item.productId._id,
           shopId: shopId,

@@ -15,6 +15,7 @@ const orderSchema = new mongoose.Schema(
       {
         productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
         shopId: { type: mongoose.Schema.Types.ObjectId, ref: "Shop", required: true },
+        shopName: { type: String },
         quantity: { type: Number, required: true },
         price: { type: Number, required: true },
       }
