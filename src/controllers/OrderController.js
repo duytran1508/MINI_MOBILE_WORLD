@@ -61,8 +61,6 @@ const createOrder = async (req, res) => {
     });
   }
 };
-
-
 const getAllOrdersByUser = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -111,29 +109,39 @@ const getAllOrders = async (req, res) => {
   }
 };
 const getOrderById = async (req, res) => {
-  const { orderId } = req.params;
   try {
-    const order = await Order.findById(orderId).populate("products.productId");
+    const { orderId } = req.params; // Lấy orderId từ URL
 
-    if (!order) {
-      return res.status(404).json({
-        status: "ERR",
-        message: "Order not found"
-      });
+    // Nếu có nhiều orderId (cách nhau bởi dấu `,`), tách thành mảng
+    const orderIds = orderId.includes(",") ? orderId.split(",") : [orderId];
+
+    // Kiểm tra tất cả orderIds có hợp lệ không (phải là ObjectId)
+    if (!orderIds.every(id => /^[0-9a-fA-F]{24}$/.test(id))) {
+      return res.status(400).json({ status: "ERR", message: "⚠️ orderId không hợp lệ." });
     }
 
-    return res.status(200).json({
-      status: "OK",
-      data: order
-    });
+    let orders;
+    if (orderIds.length === 1) {
+      // Nếu chỉ có 1 ID, lấy một đơn hàng
+      orders = await Order.findById(orderIds[0]).populate("products.productId");
+      if (!orders) {
+        return res.status(404).json({ status: "ERR", message: " Không tìm thấy đơn hàng." });
+      }
+    } else {
+      // Nếu có nhiều ID, lấy danh sách đơn hàng
+      orders = await Order.find({ _id: { $in: orderIds } }).populate("products.productId");
+      if (orders.length === 0) {
+        return res.status(404).json({ status: "ERR", message: " Không tìm thấy đơn hàng nào." });
+      }
+    }
+
+    return res.status(200).json({ status: "OK", data: orders });
   } catch (error) {
-    console.error("Error in getOrderById controller:", error);
-    return res.status(500).json({
-      status: "ERR",
-      message: "Internal server error"
-    });
+    console.error(" Error in getOrderById controller:", error);
+    return res.status(500).json({ status: "ERR", message: "Lỗi hệ thống", error: error.message });
   }
 };
+
 const getAllOrdersByShop = async (req, res) => {
   try {
     const { shopId } = req.params;
