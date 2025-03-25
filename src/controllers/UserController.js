@@ -377,8 +377,13 @@ const upgradeToSeller = async (req, res) => {
   }
 };
 const followUser = async (req, res) => {
-  try {
-    const result = await UserService.followUser(req.user.id, req.body.targetUserId);
+  try {    
+    const { userId, targetUserId } = req.body;
+    if (!userId || !targetUserId) {
+      return res.status(400).json({ error: "Thiếu userId hoặc targetUserId" });
+    }
+    const result = await UserService.followUser(userId, targetUserId);
+
     res.json(result);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -387,12 +392,18 @@ const followUser = async (req, res) => {
 
 const unfollowUser = async (req, res) => {
   try {
-    const result = await UserService.unfollowUser(req.user.id, req.body.targetUserId);
+    const { userId, targetUserId } = req.body;
+    if (!userId || !targetUserId) {
+      return res.status(400).json({ error: "Thiếu userId hoặc targetUserId" });
+    }
+
+    const result = await UserService.unfollowUser(userId, targetUserId);
     res.json(result);
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
 };
+
 
 const getFollowersAndFollowing = async (req, res) => {
   try {

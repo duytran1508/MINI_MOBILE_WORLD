@@ -61,7 +61,7 @@ const handleVNPayCallback = async (req, res) => {
       return res.status(200).json({
         status: "OK",
         success: true,
-        message: "✅ Thanh toán thành công!",
+        message: " Thanh toán thành công!",
         orderIds,
         updatedOrders: updateResult.updatedCount
       });
@@ -73,14 +73,14 @@ const handleVNPayCallback = async (req, res) => {
     return res.status(400).json({
       status: "ERR",
       success: false,
-      message: "❌ Thanh toán không thành công.",
+      message: " Thanh toán không thành công.",
       orderIds
     });
   } catch (e) {
-    console.error("❌ Lỗi khi xử lý callback từ VNPay:", e.message);
+    console.error(" Lỗi khi xử lý callback từ VNPay:", e.message);
     return res.status(500).json({
       status: "ERR",
-      message: "❌ Lỗi hệ thống.",
+      message: " Lỗi hệ thống.",
       error: e.message
     });
   }
@@ -93,7 +93,7 @@ const updatePaymentStatus = async (req, res) => {
     if (!Array.isArray(orderIds) || orderIds.length === 0 || typeof isSuccess !== "boolean") {
       return res.status(400).json({
         status: "ERR",
-        message: "⚠️ orderIds (mảng) và isSuccess (boolean) là bắt buộc."
+        message: " orderIds (mảng) và isSuccess (boolean) là bắt buộc."
       });
     }
 
@@ -102,14 +102,14 @@ const updatePaymentStatus = async (req, res) => {
     return res.status(200).json({
       status: "OK",
       success: true,
-      message: `✅ Cập nhật trạng thái thanh toán thành công cho ${updateResult.updatedCount} đơn hàng.`,
+      message: ` Cập nhật trạng thái thanh toán thành công cho ${updateResult.updatedCount} đơn hàng.`,
       orderIds
     });
   } catch (e) {
-    console.error("❌ Lỗi khi cập nhật trạng thái thanh toán:", e.message);
+    console.error(" Lỗi khi cập nhật trạng thái thanh toán:", e.message);
     return res.status(500).json({
       status: "ERR",
-      message: "❌ Lỗi hệ thống.",
+      message: " Lỗi hệ thống.",
       error: e.message
     });
   }
