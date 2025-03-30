@@ -2,35 +2,6 @@ const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
 dotenv.config();
 
-const authMiddleWare = (req, res, next) => {
-  const token = req.headers.token?.split(" ")[1];
-
-  if (!token) {
-    return res.status(401).json({
-      message: "Không có token, truy cập bị từ chối",
-      status: "ERROR",
-    });
-  }
-
-  jwt.verify(token, process.env.ACCESS_TOKEN, function (err, user) {
-    if (err) {
-      return res.status(404).json({
-        message: "Token không hợp lệ",
-        status: "ERROR"
-      });
-    }
-    const { payload } = user;
-    if (payload?.roles === 0) {
-      next();
-    } else {
-      return res.status(404).json({
-        message: "Bạn không phải là ADMIN",
-        status: "ERROR"
-      });
-    }
-  });
-};
-
 const authUserMiddleWare = (req, res, next) => {
   try {
     // Lấy token từ header
@@ -106,7 +77,6 @@ const authAdminMiddleware = (req, res, next) => {
 
 
 module.exports = {
-  authMiddleWare,
   authUserMiddleWare,
   authAdminMiddleware,
 };
