@@ -13,15 +13,13 @@ const addOrUpdateProductInCart = async (req, res) => {
       });
     }
 
-    const response = await CartService.addOrUpdateProductInCart(
-      userId,
-      productId,
-      quantity
-    );
+    await CartService.addOrUpdateProductInCart(userId, productId, quantity);
+    const updatedCart = await CartService.getCartByUserId(userId);
+
     res.status(200).json({
       status: "OK",
       message: "Cart updated successfully",
-      data: response
+      data: updatedCart
     });
   } catch (error) {
     console.error("Error in addOrUpdateProductInCart Controller:", error);
@@ -31,6 +29,7 @@ const addOrUpdateProductInCart = async (req, res) => {
     });
   }
 };
+
 const UpdateProductInCart = async (req, res) => {
   try {
     const { userId, productId } = req.body;
@@ -42,21 +41,23 @@ const UpdateProductInCart = async (req, res) => {
       });
     }
 
-    const cartData = await CartService.UpdateProductInCart(userId, productId);
+    await CartService.UpdateProductInCart(userId, productId);
+    const updatedCart = await CartService.getCartByUserId(userId);
 
     res.status(200).json({
       status: "OK",
       message: "Product quantity decreased by 1",
-      data: cartData
+      data: updatedCart
     });
   } catch (error) {
-    console.error("Error in DecreaseProductQuantityController:", error);
+    console.error("Error in UpdateProductInCart Controller:", error);
     res.status(error.status || 500).json({
       status: "ERR",
       message: error.message || "Internal server error"
     });
   }
 };
+
 const getCartByUserId = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -68,14 +69,22 @@ const getCartByUserId = async (req, res) => {
       });
     }
 
-    const response = await CartService.getCartByUserId(userId);
-    return res.status(200).json(response);
-  } catch (e) {
+    const updatedCart = await CartService.getCartByUserId(userId);
+
+    return res.status(200).json({
+      status: "OK",
+      message: "Lấy giỏ hàng thành công",
+      data: updatedCart
+    });
+  } catch (error) {
+    console.error("Error in getCartByUserId Controller:", error);
     return res.status(500).json({
-      message: e.message || "Đã xảy ra lỗi"
+      status: "ERR",
+      message: error.message || "Đã xảy ra lỗi"
     });
   }
 };
+
 const removeProductFromCart = async (req, res) => {
   const { userId, productId } = req.params;
   try {
